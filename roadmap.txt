@@ -1,0 +1,38 @@
+**Fase 1: Configuración y Fundamentos del Proyecto (1-2 semanas)**
+*   [x] Configurar el entorno de desarrollo (Node.js, npm/yarn, Expo CLI, Git).
+*   [x] Inicializar el proyecto React Native (Expo).
+*   [x] Inicializar el proyecto Node.js (Express) para el backend.
+*   [x] Configurar la base de datos PostgreSQL local.
+*   [x] Definir el esquema de la base de datos (tablas para usuarios, productos, proveedores, ventas).
+*   [ ] Crear un repositorio en Git y subir la estructura inicial del proyecto.
+
+**Fase 2: Funcionalidad Principal - Backend (API) (2-3 semanas)**
+*   [ ] Implementar la autenticación de usuarios (JWT o Firebase).
+*   [ ] Crear los endpoints CRUD para productos.
+*   [ ] Crear los endpoints CRUD para proveedores.
+*   [ ] Implementar el endpoint de registro de ventas.
+*   [ ] Implementar la lógica de gestión de inventario (actualizar stock en cada venta).
+*   [ ] Documentación de la API (versión inicial).
+
+**Fase 3: Funcionalidad Principal - Frontend (Aplicación Móvil) (3-4 semanas)**
+*   [ ] Implementar las pantallas de autenticación de usuarios (Login, Registro).
+*   [ ] Crear la estructura de navegación (ej. usando React Navigation).
+*   [ ] Desarrollar las pantallas de gestión de productos (Listar, Añadir, Editar).
+*   [ ] Desarrollar las pantallas de gestión de proveedores (Listar, Añadir, Editar).
+*   [ ] Implementar la pantalla de ventas con escaneo de código de barras.
+*   [ ] Desarrollar la pantalla de visualización de inventario.
+
+**Fase 4: Funcionalidades Avanzadas (2-3 semanas)**
+*   [ ] Soporte offline (almacenamiento local con AsyncStorage/SQLite).
+*   [ ] Sincronización entre los datos locales y el servidor.
+*   [ ] Informes (ventas diarias/semanales, productos más vendidos).
+*   [ ] Alertas de stock bajo y productos a punto de caducar.
+*   [ ] Gestión de ofertas y descuentos.
+
+**Fase 5: Pruebas, Despliegue y Documentación (2-3 semanas)**
+*   [ ] Pruebas unitarias y de integración para el backend.
+*   [ ] Pruebas de componentes y end-to-end para el frontend.
+*   [ ] Desplegar el backend en Railway/Heroku.
+*   [ ] Compilar y desplegar la aplicación frontend (APK/AAB a través de Expo/EAS).
+*   [ ] Finalizar la documentación técnica y de usuario.
+*   [ ] Crear un README completo para el proyecto.
