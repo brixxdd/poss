@@ -4,23 +4,23 @@
 *   [x] Inicializar el proyecto Node.js (Express) para el backend.
 *   [x] Configurar la base de datos PostgreSQL local.
 *   [x] Definir el esquema de la base de datos (tablas para usuarios, productos, proveedores, ventas).
-*   [ ] Crear un repositorio en Git y subir la estructura inicial del proyecto.
+*   [x] Crear un repositorio en Git y subir la estructura inicial del proyecto.
 
 **Fase 2: Funcionalidad Principal - Backend (API) (2-3 semanas)**
-*   [ ] Implementar la autenticación de usuarios (JWT o Firebase).
-*   [ ] Crear los endpoints CRUD para productos.
-*   [ ] Crear los endpoints CRUD para proveedores.
-*   [ ] Implementar el endpoint de registro de ventas.
-*   [ ] Implementar la lógica de gestión de inventario (actualizar stock en cada venta).
-*   [ ] Documentación de la API (versión inicial).
+*   [x] Implementar la autenticación de usuarios (JWT, ignorando Firebase).
+*   [x] Crear los endpoints CRUD para productos.
+*   [x] Crear los endpoints CRUD para proveedores.
+*   [x] Implementar el endpoint de registro de ventas.
+*   [x] Implementar la lógica de gestión de inventario (actualizar stock en cada venta).
+*   [x] Documentación de la API (versión inicial).
 
 **Fase 3: Funcionalidad Principal - Frontend (Aplicación Móvil) (3-4 semanas)**
-*   [ ] Implementar las pantallas de autenticación de usuarios (Login, Registro).
-*   [ ] Crear la estructura de navegación (ej. usando React Navigation).
-*   [ ] Desarrollar las pantallas de gestión de productos (Listar, Añadir, Editar).
-*   [ ] Desarrollar las pantallas de gestión de proveedores (Listar, Añadir, Editar).
-*   [ ] Implementar la pantalla de ventas con escaneo de código de barras.
-*   [ ] Desarrollar la pantalla de visualización de inventario.
+*   [x] Implementar las pantallas de autenticación de usuarios (Login, Registro).
+*   [x] Crear la estructura de navegación (ej. usando React Navigation).
+*   [x] Desarrollar las pantallas de gestión de productos (Listar, Añadir, Editar).
+*   [x] Desarrollar las pantallas de gestión de proveedores (Listar, Añadir, Editar).
+*   [x] Implementar la pantalla de ventas con escaneo de código de barras.
+*   [x] Desarrollar la pantalla de visualización de inventario.
 
 **Fase 4: Funcionalidades Avanzadas (2-3 semanas)**
 *   [ ] Soporte offline (almacenamiento local con AsyncStorage/SQLite).
