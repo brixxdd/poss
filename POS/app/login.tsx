@@ -16,7 +16,7 @@ import {
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BACKEND_URL } from '../constants/config';
+import { BACKEND_URL } from './constants/config';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -115,6 +115,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
+      shakeAnimation();
       Alert.alert('Error', '¡Por favor completa todos los campos! 📝');
       return;
     }
@@ -165,7 +166,13 @@ export default function LoginScreen() {
         Alert.alert('¡Éxito! 🎉', `Bienvenido ${user.username}!`, [
           {
             text: 'Continuar',
-            onPress: () => router.replace('/home'),
+            onPress: () => {
+              if (user.role === 'admin') {
+                router.replace('/(admin)');
+              } else {
+                router.replace('/(tabs)');
+              }
+            },
           },
         ]);
       });

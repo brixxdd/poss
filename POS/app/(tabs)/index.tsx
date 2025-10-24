@@ -9,8 +9,9 @@ import {
   Dimensions,
   StatusBar,
   Platform,
+  Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,41 +21,34 @@ const { width, height } = Dimensions.get('window');
 const cardWidth = width * 0.42;
 
 const menuItems = [
-  { 
-    title: 'Products', 
-    icon: 'cube-outline', 
-    route: '/products',
-    gradient: ['#667eea', '#764ba2'],
-    shadowColor: '#667eea',
-  },
-  { 
-    title: 'Providers', 
-    icon: 'people-outline', 
-    route: '/providers',
-    gradient: ['#f093fb', '#f5576c'],
-    shadowColor: '#f093fb',
-  },
-  { 
-    title: 'New Sale', 
-    icon: 'cart-outline', 
-    route: '/sales',
+  {
+    title: 'Nueva Venta',
+    icon: 'cart-outline',
+    route: '/', // This is the current tab's index screen
     gradient: ['#4facfe', '#00f2fe'],
     shadowColor: '#4facfe',
   },
-  { 
-    title: 'Inventory', 
-    icon: 'stats-chart-outline', 
+  {
+    title: 'Inventario',
+    icon: 'stats-chart-outline',
     route: '/inventory',
     gradient: ['#43e97b', '#38f9d7'],
     shadowColor: '#43e97b',
   },
+  {
+    title: 'Reportes',
+    icon: 'document-text-outline',
+    route: '/reports',
+    gradient: ['#f093fb', '#f5576c'],
+    shadowColor: '#f093fb',
+  },
 ];
 
-export default function HomeScreen() {
+export default function SalesScreen() {
   const router = useRouter();
   const [user, setUser] = useState<{ username: string } | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  
+
   // Animaciones
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(-50)).current;
@@ -116,7 +110,7 @@ export default function HomeScreen() {
         }),
       ]);
     });
-    
+
     Animated.stagger(150, cardAnimations).start();
 
     // Animación de pulso continuo
@@ -168,33 +162,49 @@ export default function HomeScreen() {
     return () => clearInterval(timer);
   }, []);
 
-  const handleLogout = async () => {
-    // Animación de salida
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      ...cardAnims.map(anim => 
-        Animated.timing(anim.scale, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        })
-      ),
-    ]).start(async () => {
-      await AsyncStorage.removeItem('userToken');
-      await AsyncStorage.removeItem('user');
-      router.replace('/login');
-    });
+  const handleLogout = () => {
+    Alert.alert(
+      'Cerrar Sesión',
+      '¿Estás seguro de que quieres cerrar sesión?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Cerrar Sesión',
+          style: 'destructive',
+          onPress: async () => {
+            // Animación de salida
+            Animated.parallel([
+              Animated.timing(fadeAnim, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+              }),
+              ...cardAnims.map(anim =>
+                Animated.timing(anim.scale, {
+                  toValue: 0,
+                  duration: 300,
+                  useNativeDriver: true,
+                })
+              ),
+            ]).start(async () => {
+              await AsyncStorage.removeItem('userToken');
+              await AsyncStorage.removeItem('user');
+              router.replace('/login');
+            });
+          },
+        },
+      ]
+    );
   };
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
-    if (hour < 12) return { text: 'Good Morning', emoji: '☀️' };
-    if (hour < 18) return { text: 'Good Afternoon', emoji: '🌤️' };
-    return { text: 'Good Evening', emoji: '🌙' };
+    if (hour < 12) return { text: 'Buenos Días', emoji: '☀️' };
+    if (hour < 18) return { text: 'Buenas Tardes', emoji: '🌤️' };
+    return { text: 'Buenas Noches', emoji: '🌙' };
   };
 
   const handleCardPress = (route: string, index: number) => {
@@ -228,12 +238,12 @@ export default function HomeScreen() {
       ]),
     ]).start();
 
-    setTimeout(() => router.push(route), 200);
+    setTimeout(() => router.push(route as any), 200);
   };
 
   const renderMenuItem = (item: typeof menuItems[0], index: number) => {
     const { scale, rotate, translateY } = cardAnims[index];
-    
+
     const rotateInterpolate = rotate.interpolate({
       inputRange: [0, 1],
       outputRange: ['-10deg', '0deg'],
@@ -245,15 +255,15 @@ export default function HomeScreen() {
     });
 
     return (
-      <Animated.View 
+      <Animated.View
         style={[
           styles.cardContainer,
-          { 
+          {
             transform: [
               { scale },
               { translateY },
               { rotate: rotateInterpolate },
-            ] 
+            ]
           }
         ]}
       >
@@ -278,13 +288,13 @@ export default function HomeScreen() {
               ]}
             >
               {/* Efecto de brillo */}
-              <Animated.View 
+              <Animated.View
                 style={[
                   styles.shimmer,
                   { transform: [{ translateX: shimmerTranslate }] }
                 ]}
               />
-              
+
               {/* Contenido de la tarjeta */}
               <View style={styles.cardContent}>
                 <View style={styles.iconCircle}>
@@ -293,7 +303,7 @@ export default function HomeScreen() {
                   </View>
                 </View>
                 <Text style={styles.cardText}>{item.title}</Text>
-                
+
                 {/* Indicador de acción */}
                 <View style={styles.actionIndicator}>
                   <Ionicons name="arrow-forward" size={16} color="rgba(255,255,255,0.8)" />
@@ -377,14 +387,14 @@ export default function HomeScreen() {
                   <Text style={styles.emoji}>{greeting.emoji}</Text>
                   <View>
                     <Text style={styles.greetingText}>{greeting.text}</Text>
-                    <Text style={styles.username}>{user?.username || 'Guest'}</Text>
+                    <Text style={styles.username}>{user?.username || 'Invitado'}</Text>
                   </View>
                 </View>
                 
                 <TouchableOpacity style={styles.profileButton}>
                   <View style={styles.profileCircle}>
                     <Text style={styles.profileInitial}>
-                      {(user?.username || 'G')[0].toUpperCase()}
+                      {(user?.username || 'I')[0].toUpperCase()}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -446,7 +456,7 @@ export default function HomeScreen() {
                 <View style={styles.logoutIconCircle}>
                   <Ionicons name="log-out-outline" size={22} color="#ff6b6b" />
                 </View>
-                <Text style={styles.logoutText}>Logout</Text>
+                <Text style={styles.logoutText}>Cerrar Sesión</Text>
                 <View style={styles.logoutArrow}>
                   <Ionicons name="arrow-forward" size={18} color="rgba(255,107,107,0.6)" />
                 </View>

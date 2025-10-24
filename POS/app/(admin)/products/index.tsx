@@ -14,7 +14,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BACKEND_URL } from '../../constants/config';
+import { BACKEND_URL } from '../../constants/config'; // Adjusted import path
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
@@ -112,7 +112,7 @@ export default function ManageProductScreen() {
       });
 
       Alert.alert('Success', `Product ${isEditing ? 'updated' : 'created'} successfully!`);
-      router.replace('/products');
+      router.replace('/(admin)/products'); // Adjusted routing
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.message || 'Failed to save product.');
     } finally {

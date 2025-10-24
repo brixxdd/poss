@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
-import { BACKEND_URL } from '../constants/config';
+import { BACKEND_URL } from './constants/config';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
@@ -119,24 +119,23 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     // Validaciones
+    let hasError = false;
     if (!username.trim()) {
-      shakeAnimation();
       Alert.alert('❌ Error', 'Por favor ingresa un nombre de usuario');
-      return;
-    }
-    if (!password.trim()) {
-      shakeAnimation();
+      hasError = true;
+    } else if (!password.trim()) {
       Alert.alert('❌ Error', 'Por favor ingresa una contraseña');
-      return;
-    }
-    if (password.length < 6) {
-      shakeAnimation();
+      hasError = true;
+    } else if (password.length < 6) {
       Alert.alert('❌ Error', 'La contraseña debe tener al menos 6 caracteres');
-      return;
-    }
-    if (password !== confirmPassword) {
-      shakeAnimation();
+      hasError = true;
+    } else if (password !== confirmPassword) {
       Alert.alert('❌ Error', 'Las contraseñas no coinciden');
+      hasError = true;
+    }
+
+    if (hasError) {
+      shakeAnimation();
       return;
     }
 
