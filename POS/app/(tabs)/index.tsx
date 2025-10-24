@@ -24,7 +24,7 @@ const menuItems = [
   {
     title: 'Nueva Venta',
     icon: 'cart-outline',
-    route: '/', // This is the current tab's index screen
+    route: '/sales', // Redirect to sales screen
     gradient: ['#4facfe', '#00f2fe'],
     shadowColor: '#4facfe',
   },

@@ -261,6 +261,18 @@ export default function EmployeeLayout() {
             />
           ),
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('sales' as any);
+          },
+        })}
+      />
+      <Tabs.Screen
+        name="sales"
+        options={{
+          href: null, // Ocultar del tab bar
+        }}
       />
       <Tabs.Screen
         name="inventory"

@@ -248,7 +248,7 @@ export function CustomAlert({
                 {/* Línea decorativa */}
                 <LinearGradient
                   colors={theme.gradient}
-                  start={{ x: 0, y: 0 }}c
+                  start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.divider}
                 />

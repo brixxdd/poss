@@ -5,7 +5,6 @@ import {
   Text,
   TextInput,
   StyleSheet,
-  Alert,
   Animated,
   TouchableOpacity,
   KeyboardAvoidingView,
@@ -20,6 +19,7 @@ import { BACKEND_URL } from './constants/config';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import { useAlert, alertHelpers } from './components/AlertProvider';
 
 const { width, height } = Dimensions.get('window');
 
@@ -29,6 +29,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { showAlert } = useAlert();
 
   // Animaciones
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -113,30 +114,37 @@ export default function LoginScreen() {
     floatParticle(particle3, 2000);
   }, []);
 
+  const shakeAnimation = () => {
+    Animated.sequence([
+      Animated.timing(slideAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+    ]).start();
+  };
+
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
       shakeAnimation();
-      Alert.alert('Error', '¡Por favor completa todos los campos! 📝');
+      alertHelpers.error(showAlert, 'Error', '¡Por favor completa todos los campos! 📝');
       return;
     }
 
     setLoading(true);
 
-    // Animación de loading
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(scaleAnim, {
-          toValue: 1.1,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 1,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
+    // Animación de loading (solo una vez, no en bucle)
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 1.05,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
     try {
       const response = await axios.post(`${BACKEND_URL}/api/auth/login`, {
@@ -163,31 +171,22 @@ export default function LoginScreen() {
           useNativeDriver: true,
         }),
       ]).start(() => {
-        Alert.alert('¡Éxito! 🎉', `Bienvenido ${user.username}!`, [
-          {
-            text: 'Continuar',
-            onPress: () => {
-              if (user.role === 'admin') {
-                router.replace('/(admin)');
-              } else {
-                router.replace('/(tabs)');
-              }
-            },
-          },
-        ]);
+        alertHelpers.success(showAlert, '¡Éxito! 🎉', `Bienvenido ${user.username}!`, () => {
+          if (user.role === 'admin') {
+            router.replace('/(admin)');
+          } else {
+            router.replace('/(tabs)');
+          }
+        });
       });
     } catch (error: any) {
       console.error('Login error:', error.response?.data || error.message);
       
-      // Shake animation en caso de error
-      Animated.sequence([
-        Animated.timing(slideAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
-        Animated.timing(slideAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
-      ]).start();
+      // Animación de error simple (solo una vez)
+      shakeAnimation();
 
-      Alert.alert(
+      alertHelpers.error(
+        showAlert,
         '❌ Error',
         error.response?.data?.message || 'Credenciales incorrectas. Intenta de nuevo.'
       );

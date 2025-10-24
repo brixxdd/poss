@@ -1,6 +1,6 @@
 -- Table for Users
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id SERIAL PRIMARY KEY, -- Changed from UUID to SERIAL (auto-incrementing integer)
     username VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL DEFAULT 'employee' -- e.g., 'admin', 'employee'
@@ -32,7 +32,7 @@ CREATE TABLE sales (
     sale_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     total_amount DECIMAL(10, 2) NOT NULL,
     payment_method VARCHAR(50), -- e.g., 'cash', 'card'
-    user_id UUID REFERENCES users(id)
+    user_id INTEGER REFERENCES users(id) -- Changed from UUID to INTEGER
 );
 
 -- Table for Sale Items (to link Sales and Products)

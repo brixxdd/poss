@@ -112,7 +112,7 @@ app.post('/api/auth/register', async (req, res) => {
         console.log('📝 Values:', [username, '***HIDDEN***', role || 'employee']);
         
         const result = await pool.query(
-            'INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id, username, role, created_at',
+            'INSERT INTO users (username, password_hash, role) VALUES ($1, $2, $3) RETURNING id, username, role',
             [username, hashedPassword, role || 'employee']
         );
         
@@ -201,7 +201,8 @@ app.post('/api/auth/login', async (req, res) => {
             user: {
                 id: user.id,
                 username: user.username,
-                role: user.role
+                role: user.role,
+                uuid: user.id // Add UUID field for frontend
             }
         });
     } catch (error) {
@@ -213,7 +214,7 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
     try {
         const result = await pool.query(
-            'SELECT id, username, role, created_at FROM users WHERE id = $1',
+            'SELECT id, username, role FROM users WHERE id = $1',
             [req.user.id]
         );
         if (result.rows.length === 0) {
@@ -287,7 +288,7 @@ app.put('/api/products/:id', authenticateToken, authorizeAdmin, async (req, res)
     const { name, code, purchase_price, sale_price, stock, provider_id, category, image_url } = req.body;
     try {
         const result = await pool.query(
-            'UPDATE products SET name = $1, code = $2, purchase_price = $3, sale_price = $4, stock = $5, provider_id = $6, category = $7, image_url = $8, updated_at = NOW() WHERE id = $9 RETURNING *',
+            'UPDATE products SET name = $1, code = $2, purchase_price = $3, sale_price = $4, stock = $5, provider_id = $6, category = $7, image_url = $8 WHERE id = $9 RETURNING *',
             [name, code, purchase_price, sale_price, stock, provider_id, category, image_url, id]
         );
         if (result.rows.length === 0) {
@@ -393,16 +394,28 @@ app.delete('/api/providers/:id', authenticateToken, authorizeAdmin, async (req, 
 // ============================================
 
 app.post('/api/sales', authenticateToken, async (req, res) => {
-    const { payment_method, items } = req.body;
+    const { payment_method, items, total_amount } = req.body;
     const client = await pool.connect();
     
     try {
         await client.query('BEGIN');
-        let total_amount = 0;
+        
+        // Always get the actual UUID from the database for the user
+        // The JWT contains the UUID, but we need to make sure it's the right format
+        let userId;
+        
+        // Use the user ID directly from JWT (should be integer now)
+        userId = req.user.id;
+        
+        console.log('Using user ID from JWT:', userId, 'Type:', typeof userId);
+        
+        console.log('Creating sale with user_id:', userId);
+        console.log('User from JWT:', req.user);
+        console.log('Total amount from frontend:', total_amount);
         
         const saleResult = await client.query(
             'INSERT INTO sales (user_id, payment_method, total_amount) VALUES ($1, $2, $3) RETURNING id, sale_date',
-            [req.user.id, payment_method, 0]
+            [userId, payment_method || 'cash', total_amount || 0]
         );
         const saleId = saleResult.rows[0].id;
         
@@ -417,29 +430,28 @@ app.post('/api/sales', authenticateToken, async (req, res) => {
                 throw new Error(`Product ${item.product_id} is out of stock or insufficient quantity.`);
             }
             
-            const itemPrice = product.sale_price * item.quantity;
-            total_amount += itemPrice;
-            
             await client.query(
                 'INSERT INTO sale_items (sale_id, product_id, quantity, price_at_sale) VALUES ($1, $2, $3, $4)',
                 [saleId, item.product_id, item.quantity, product.sale_price]
             );
             
             await client.query(
-                'UPDATE products SET stock = stock - $1, updated_at = NOW() WHERE id = $2',
+                'UPDATE products SET stock = stock - $1 WHERE id = $2',
                 [item.quantity, item.product_id]
             );
         }
-        
-        await client.query('UPDATE sales SET total_amount = $1 WHERE id = $2', [total_amount, saleId]);
         await client.query('COMMIT');
         
-        res.status(201).json({ 
+        const responseData = { 
             message: 'Sale registered successfully', 
+            id: saleId,
             saleId, 
-            total_amount,
+            total_amount: total_amount || 0,
             sale_date: saleResult.rows[0].sale_date
-        });
+        };
+        
+        console.log('Sale completed successfully:', responseData);
+        res.status(201).json(responseData);
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('Error registering sale:', error);
