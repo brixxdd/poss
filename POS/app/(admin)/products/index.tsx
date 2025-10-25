@@ -21,6 +21,7 @@ import { BACKEND_URL } from '../../constants/config';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { QRGenerator } from '../../components/QRGenerator';
 
 const { width, height } = Dimensions.get('window');
 
@@ -39,6 +40,7 @@ export default function ManageProductScreen() {
   const [formReady, setFormReady] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showQR, setShowQR] = useState(false);
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const isEditing = !!id;
@@ -409,7 +411,7 @@ export default function ManageProductScreen() {
     return helpers[key] || null;
   };
 
-  const renderStatCard = (icon: string, label: string, value: string, gradient: string[]) => (
+  const renderStatCard = (icon: string, label: string, value: string, gradient: [string, string]) => (
     <Animated.View style={[styles.statCard, { opacity: fadeAnim }]}>
       <BlurView intensity={20} tint="dark" style={styles.statBlur}>
         <LinearGradient
@@ -583,6 +585,28 @@ export default function ManageProductScreen() {
             {renderInput('provider_id', 'ID del Proveedor', 'business', 'default')}
             {renderInput('image_url', 'URL de la Imagen', 'image', 'url', true)}
 
+            {/* Generate QR Button - Solo si está editando y tiene datos válidos */}
+            {isEditing && formData.name && formData.sale_price && (
+              <TouchableOpacity
+                style={styles.qrButton}
+                onPress={() => setShowQR(true)}
+                activeOpacity={0.8}
+              >
+                <BlurView intensity={20} tint="dark" style={styles.qrButtonBlur}>
+                  <LinearGradient
+                    colors={['#4facfe', '#00f2fe']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.qrButtonGradient}
+                  >
+                    <Ionicons name="qr-code" size={24} color="#fff" />
+                    <Text style={styles.qrButtonText}>Generar Código QR</Text>
+                    <Ionicons name="arrow-forward" size={20} color="#fff" />
+                  </LinearGradient>
+                </BlurView>
+              </TouchableOpacity>
+            )}
+
             {/* Submit Button */}
             <Animated.View
               style={{
@@ -635,6 +659,20 @@ export default function ManageProductScreen() {
           </Animated.View>
         </ScrollView>
       </View>
+
+      {/* QR Generator Modal */}
+      <QRGenerator
+        visible={showQR}
+        product={isEditing ? {
+          id: id as string,
+          name: formData.name,
+          code: formData.code,
+          sale_price: parseFloat(formData.sale_price) || 0,
+          stock: parseInt(formData.stock) || 0,
+          category: formData.category,
+        } : null}
+        onClose={() => setShowQR(false)}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -897,5 +935,28 @@ const styles = StyleSheet.create({
   infoFooterText: {
     fontSize: 12,
     color: 'rgba(255,255,255,0.6)',
+  },
+  qrButton: {
+    marginTop: 16,
+    borderRadius: 18,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(79,172,254,0.5)',
+  },
+  qrButtonBlur: {
+    overflow: 'hidden',
+    borderRadius: 16,
+  },
+  qrButtonGradient: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+    gap: 12,
+  },
+  qrButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

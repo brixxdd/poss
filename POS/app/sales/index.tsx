@@ -22,6 +22,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useAlert, alertHelpers } from '../components/AlertProvider';
+import { QRScanner } from '../components/QRScanner';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -37,8 +38,25 @@ export default function SalesScreen() {
   const [loading, setLoading] = useState(true);
   const [processingSale, setProcessingSale] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [showQRScanner, setShowQRScanner] = useState(false);
   const router = useRouter();
   const { showAlert } = useAlert();
+  
+  // Función para manejar producto escaneado
+  const handleProductScanned = (scannedProduct: any) => {
+    // Buscar el producto en la lista de productos
+    const existingProduct = products.find(p => p.id === scannedProduct.id);
+    
+    if (existingProduct) {
+      // Usar el producto de la lista (con datos actualizados)
+      addToCart(existingProduct);
+      alertHelpers.success(showAlert, 'Producto Agregado', `${existingProduct.name} agregado al carrito`);
+    } else {
+      // Si no se encuentra, usar los datos del QR
+      addToCart(scannedProduct);
+      alertHelpers.success(showAlert, 'Producto Agregado', `${scannedProduct.name} agregado al carrito`);
+    }
+  };
   
   // Animaciones
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -223,8 +241,8 @@ export default function SalesScreen() {
     
     if (searchQuery) {
       filtered = filtered.filter((product: any) =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.code.toLowerCase().includes(searchQuery.toLowerCase())
+      product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.code.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
     
@@ -433,7 +451,7 @@ export default function SalesScreen() {
                     <Text style={styles.outOfStockText}>Out of Stock</Text>
                   </View>
                 )}
-              </View>
+        </View>
 
               {/* Add Button */}
               {!isOutOfStock && (
@@ -544,9 +562,9 @@ export default function SalesScreen() {
               <Ionicons name="trash-outline" size={20} color="#ff5858" />
             </TouchableOpacity>
           </LinearGradient>
-        </BlurView>
+    </BlurView>
       </Animated.View>
-    );
+  );
   };
 
   return (
@@ -582,11 +600,24 @@ export default function SalesScreen() {
         </TouchableOpacity>
         
         <View style={styles.headerCenter}>
-          <Text style={styles.title}>New Sale</Text>
+        <Text style={styles.title}>New Sale</Text>
           <Text style={styles.subtitle}>Point of Sale</Text>
-        </View>
-        
-        {/* Cart Badge */}
+      </View>
+
+        {/* Header Actions */}
+        <View style={styles.headerActions}>
+          {/* QR Scanner Button */}
+          <TouchableOpacity 
+            onPress={() => setShowQRScanner(true)} 
+            style={styles.qrButton}
+            activeOpacity={0.8}
+          >
+            <View style={styles.qrButtonInner}>
+              <Ionicons name="qr-code" size={20} color="#fff" />
+            </View>
+          </TouchableOpacity>
+
+          {/* Cart Badge */}
         <Animated.View style={[styles.cartBadgeContainer, { transform: [{ scale: cartBounce }] }]}>
           <View style={styles.cartBadge}>
             <LinearGradient
@@ -602,6 +633,7 @@ export default function SalesScreen() {
             </LinearGradient>
           </View>
         </Animated.View>
+        </View>
       </Animated.View>
 
       {/* Search Bar */}
@@ -620,11 +652,11 @@ export default function SalesScreen() {
           >
             <Ionicons name="search" size={20} color="rgba(255,255,255,0.8)" />
             <TextInput
-              style={styles.searchInput}
+                style={styles.searchInput}
               placeholder="Search products..."
               placeholderTextColor="rgba(255,255,255,0.5)"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearButton}>
@@ -652,7 +684,7 @@ export default function SalesScreen() {
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Available Products</Text>
           <Text style={styles.sectionCount}>{filteredProducts.length} items</Text>
-        </View>
+      </View>
 
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -666,15 +698,15 @@ export default function SalesScreen() {
           </View>
         ) : (
           <FlatList
-            data={filteredProducts}
-            renderItem={renderProduct}
-            keyExtractor={(item) => item.id.toString()}
-            horizontal
-            showsHorizontalScrollIndicator={false}
+                data={filteredProducts}
+                renderItem={renderProduct}
+                keyExtractor={(item) => item.id.toString()}
+                horizontal
+                showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.productsList}
             snapToInterval={PRODUCT_CARD_WIDTH + 16}
             decelerationRate="fast"
-          />
+            />
         )}
       </View>
 
@@ -695,13 +727,13 @@ export default function SalesScreen() {
             <Text style={styles.emptyCartSubtext}>Add products to start a sale</Text>
           </View>
         ) : (
-          <FlatList
-            data={cart}
-            renderItem={renderCartItem}
-            keyExtractor={(item) => item.id.toString()}
+            <FlatList
+                data={cart}
+                renderItem={renderCartItem}
+                keyExtractor={(item) => item.id.toString()}
             contentContainerStyle={styles.cartList}
             showsVerticalScrollIndicator={false}
-          />
+            />
         )}
       </View>
 
@@ -727,10 +759,10 @@ export default function SalesScreen() {
                 </View>
                 <View style={styles.summaryDivider} />
                 <View style={styles.summaryRow}>
-                  <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalLabel}>Total</Text>
                   <Text style={styles.totalAmount}>${(calculateSubtotal + calculateTax).toFixed(2)}</Text>
                 </View>
-              </View>
+        </View>
 
               {/* Checkout Button */}
               <Animated.View style={{ transform: [{ scale: checkoutPulse }] }}>
@@ -767,6 +799,13 @@ export default function SalesScreen() {
           </BlurView>
         </Animated.View>
       )}
+
+      {/* QR Scanner Modal */}
+      <QRScanner
+        visible={showQRScanner}
+        onClose={() => setShowQRScanner(false)}
+        onProductScanned={handleProductScanned}
+      />
     </View>
   );
 }
@@ -797,6 +836,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  qrButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(79,172,254,0.5)',
+  },
+  qrButtonInner: {
+    flex: 1,
+    backgroundColor: 'rgba(79,172,254,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerCenter: {
     flex: 1,
@@ -848,8 +906,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   searchContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 15,
+      paddingHorizontal: 20,
+      marginBottom: 15,
   },
   searchBlur: {
     borderRadius: 20,
@@ -858,8 +916,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.15)',
   },
   searchGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
     paddingHorizontal: 16,
     height: 50,
   },
@@ -876,7 +934,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   categoriesList: {
-    paddingHorizontal: 20,
+      paddingHorizontal: 20,
     gap: 10,
   },
   categoryPill: {
@@ -909,7 +967,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   productsSection: {
-    marginBottom: 15,
+      marginBottom: 15,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -1185,8 +1243,8 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
   },
   quantityControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
     gap: 8,
     marginRight: 12,
   },
@@ -1240,7 +1298,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   summaryRow: {
-    flexDirection: 'row',
+      flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
@@ -1279,11 +1337,11 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   checkoutGradient: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
     paddingVertical: 16,
-    gap: 10,
+      gap: 10,
   },
   checkoutText: {
     color: '#fff',
