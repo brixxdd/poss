@@ -162,12 +162,17 @@ export default function LoginScreen() {
           useNativeDriver: true,
         }),
       ]).start(() => {
-        Alert.alert('¡Éxito! 🎉', `Bienvenido ${user.username}!`, [
-          {
-            text: 'Continuar',
-            onPress: () => router.replace('/home'),
-          },
-        ]);
+        if (Platform.OS === 'web') {
+          alert(`¡Éxito! 🎉\nBienvenido ${user.username}!`);
+          router.replace('/home');
+        } else {
+          Alert.alert('¡Éxito! 🎉', `Bienvenido ${user.username}!`, [
+            {
+              text: 'Continuar',
+              onPress: () => router.replace('/home'),
+            },
+          ]);
+        }
       });
     } catch (error: any) {
       console.error('Login error:', error.response?.data || error.message);

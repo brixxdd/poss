@@ -23,6 +23,7 @@ const menuItems = [
   { title: 'Manage Providers', icon: 'people-outline', route: '/providers' },
   { title: 'New Sale', icon: 'cash-outline', route: '/sales' },
   { title: 'View Inventory', icon: 'archive-outline', route: '/inventory' },
+  { title: 'Stock Alerts', icon: 'warning-outline', route: '/alerts' },
 ];
 
 export default function HomeScreen() {

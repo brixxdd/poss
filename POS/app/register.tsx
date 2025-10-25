@@ -189,16 +189,21 @@ export default function RegisterScreen() {
           useNativeDriver: true,
         }),
       ]).start(() => {
-        Alert.alert(
-          '🎉 ¡Registro Exitoso!',
-          `¡Bienvenido ${username}! Tu cuenta ha sido creada.`,
-          [
-            {
-              text: 'Iniciar Sesión',
-              onPress: () => router.replace('/login'),
-            },
-          ]
-        );
+        if (Platform.OS === 'web') {
+          alert('🎉 ¡Registro Exitoso!\n¡Bienvenido ' + username + '! Tu cuenta ha sido creada.');
+          router.replace('/login');
+        } else {
+          Alert.alert(
+            '🎉 ¡Registro Exitoso!',
+            `¡Bienvenido ${username}! Tu cuenta ha sido creada.`,
+            [
+              {
+                text: 'Iniciar Sesión',
+                onPress: () => router.replace('/login'),
+              },
+            ]
+          );
+        }
       });
     } catch (error: any) {
       console.error('❌ Registration error:', error);
