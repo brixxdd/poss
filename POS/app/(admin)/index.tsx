@@ -22,24 +22,31 @@ const cardWidth = width * 0.42;
 
 const menuItems = [
   {
-    title: 'Productos',
-    icon: 'cube-outline',
+    title: 'Nuevo Producto',
+    icon: 'add-circle-outline',
     route: '/products',
-    gradient: ['#667eea', '#764ba2'],
+    gradient: ['#667eea', '#764ba2'] as [string, string],
     shadowColor: '#667eea',
+  },
+  {
+    title: 'Gestionar Productos',
+    icon: 'cube-outline',
+    route: '/products/manage',
+    gradient: ['#4facfe', '#00f2fe'] as [string, string],
+    shadowColor: '#4facfe',
   },
   {
     title: 'Proveedores',
     icon: 'people-outline',
     route: '/providers',
-    gradient: ['#f093fb', '#f5576c'],
+    gradient: ['#f093fb', '#f5576c'] as [string, string],
     shadowColor: '#f093fb',
   },
   {
     title: 'Usuarios',
     icon: 'person-circle-outline',
     route: '/users',
-    gradient: ['#43e97b', '#38f9d7'],
+    gradient: ['#43e97b', '#38f9d7'] as [string, string],
     shadowColor: '#43e97b',
   },
 ];
@@ -238,7 +245,7 @@ export default function AdminIndex() {
       ]),
     ]).start();
 
-    setTimeout(() => router.push(`/(admin)${route}`), 200);
+    setTimeout(() => router.push(`/(admin)${route}` as any), 200);
   };
 
   const renderMenuItem = (item: typeof menuItems[0], index: number) => {
