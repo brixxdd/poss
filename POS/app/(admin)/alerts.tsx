@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, Alert, TouchableOpacity, ActivityIndicator, StatusBar, ScrollView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, StatusBar, ScrollView } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,8 +9,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import SalesChart from '../components/SalesChart';
 import SalesSummaryCards from '../components/SalesSummaryCards';
+import { useAlert, alertHelpers } from '../components/AlertProvider';
 
 export default function AlertsScreen() {
+  const { showAlert } = useAlert();
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -31,11 +33,11 @@ export default function AlertsScreen() {
       setAlerts(alertsResponse.data);
     } catch (error: any) {
       console.error('Error fetching data:', error.response?.data || error.message);
-      Alert.alert('Error', 'No se pudieron cargar los datos.');
+      alertHelpers.error(showAlert, 'Error', 'No se pudieron cargar los datos.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showAlert]);
 
   useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
 
@@ -45,10 +47,10 @@ export default function AlertsScreen() {
       const token = await AsyncStorage.getItem('userToken');
       await axios.post(`${BACKEND_URL}/api/analytics/run-alerts`, {}, { headers: { Authorization: `Bearer ${token}` } });
       await fetchData();
-      Alert.alert('Éxito', 'Las alertas han sido recalculadas.');
+      alertHelpers.success(showAlert, 'Éxito', 'Las alertas han sido recalculadas.');
     } catch (error: any) {
       console.error('Error running alerts calculation:', error.response?.data || error.message);
-      Alert.alert('Error', 'No se pudo ejecutar el cálculo de alertas.');
+      alertHelpers.error(showAlert, 'Error', 'No se pudo ejecutar el cálculo de alertas.');
     } finally {
       setIsRefreshing(false);
     }

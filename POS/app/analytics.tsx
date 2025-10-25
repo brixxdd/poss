@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, StatusBar, ScrollView, TouchableOpacity } from 
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import MetricsDashboard from '../components/MetricsDashboard';
-import TopProductsList from '../components/TopProductsList';
+import MetricsDashboard from '../app/components/MetricsDashboard';
+import TopProductsList from '../app/components/TopProductsList';
 
 export default function AnalyticsScreen() {
   const router = useRouter();
