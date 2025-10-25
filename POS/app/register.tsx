@@ -5,7 +5,6 @@ import {
   Text,
   TextInput,
   StyleSheet,
-  Alert,
   Animated,
   TouchableOpacity,
   KeyboardAvoidingView,
@@ -16,10 +15,11 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
-import { BACKEND_URL } from '../constants/config';
+import { BACKEND_URL } from './constants/config';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import { CustomAlert } from './CustomAlert';
 
 const { width, height } = Dimensions.get('window');
 
@@ -31,7 +31,19 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [alert, setAlert] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info' as 'info' | 'success' | 'warning' | 'error',
+    buttons: [] as Array<{ text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' }>
+  });
   const router = useRouter();
+
+  // Función helper para mostrar alertas personalizadas
+  const showCustomAlert = (title: string, message: string, type: 'info' | 'success' | 'warning' | 'error', buttons: Array<{ text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive' }>) => {
+    setAlert({ visible: true, title, message, type, buttons });
+  };
 
   // Animaciones
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -119,44 +131,41 @@ export default function RegisterScreen() {
 
   const handleRegister = async () => {
     // Validaciones
+    let hasError = false;
     if (!username.trim()) {
-      shakeAnimation();
-      Alert.alert('❌ Error', 'Por favor ingresa un nombre de usuario');
-      return;
+      showCustomAlert('❌ Error', 'Por favor ingresa un nombre de usuario', 'error', [{ text: 'OK' }]);
+      hasError = true;
+    } else if (!password.trim()) {
+      showCustomAlert('❌ Error', 'Por favor ingresa una contraseña', 'error', [{ text: 'OK' }]);
+      hasError = true;
+    } else if (password.length < 6) {
+      showCustomAlert('❌ Error', 'La contraseña debe tener al menos 6 caracteres', 'error', [{ text: 'OK' }]);
+      hasError = true;
+    } else if (password !== confirmPassword) {
+      showCustomAlert('❌ Error', 'Las contraseñas no coinciden', 'error', [{ text: 'OK' }]);
+      hasError = true;
     }
-    if (!password.trim()) {
+
+    if (hasError) {
       shakeAnimation();
-      Alert.alert('❌ Error', 'Por favor ingresa una contraseña');
-      return;
-    }
-    if (password.length < 6) {
-      shakeAnimation();
-      Alert.alert('❌ Error', 'La contraseña debe tener al menos 6 caracteres');
-      return;
-    }
-    if (password !== confirmPassword) {
-      shakeAnimation();
-      Alert.alert('❌ Error', 'Las contraseñas no coinciden');
       return;
     }
 
     setLoading(true);
 
-    // Animación de loading
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(scaleAnim, {
-          toValue: 1.05,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 1,
-          duration: 400,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
+    // Animación de loading (solo una vez)
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 1.05,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
     try {
       const payload = {
@@ -189,21 +198,17 @@ export default function RegisterScreen() {
           useNativeDriver: true,
         }),
       ]).start(() => {
-        if (Platform.OS === 'web') {
-          alert('🎉 ¡Registro Exitoso!\n¡Bienvenido ' + username + '! Tu cuenta ha sido creada.');
-          router.replace('/login');
-        } else {
-          Alert.alert(
-            '🎉 ¡Registro Exitoso!',
-            `¡Bienvenido ${username}! Tu cuenta ha sido creada.`,
-            [
-              {
-                text: 'Iniciar Sesión',
-                onPress: () => router.replace('/login'),
-              },
-            ]
-          );
-        }
+        showCustomAlert(
+          '🎉 ¡Registro Exitoso!',
+          `¡Bienvenido ${username}! Tu cuenta ha sido creada.`,
+          'success',
+          [
+            {
+              text: 'Iniciar Sesión',
+              onPress: () => router.replace('/login'),
+            },
+          ]
+        );
       });
     } catch (error: any) {
       console.error('❌ Registration error:', error);
@@ -219,7 +224,7 @@ export default function RegisterScreen() {
         errorMessage = `No se pudo conectar al servidor en ${BACKEND_URL}`;
       }
 
-      Alert.alert('❌ Error', errorMessage);
+      showCustomAlert('❌ Error', errorMessage, 'error', [{ text: 'OK' }]);
     } finally {
       setLoading(false);
     }
@@ -506,6 +511,16 @@ export default function RegisterScreen() {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Custom Alert */}
+      <CustomAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        type={alert.type}
+        buttons={alert.buttons}
+        onDismiss={() => setAlert(prev => ({ ...prev, visible: false }))}
+      />
     </View>
   );
 }
