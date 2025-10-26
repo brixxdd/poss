@@ -39,11 +39,14 @@ export function QRScanner({ visible, onClose, onProductScanned }: QRScannerProps
   const [flashOn, setFlashOn] = useState(false);
   const [scannedProduct, setScannedProduct] = useState<Product | null>(null);
   const [showProductModal, setShowProductModal] = useState(false);
+  const [showSuccessFeedback, setShowSuccessFeedback] = useState(false);
+  const [lastAddedProduct, setLastAddedProduct] = useState<string>('');
   
   // Animaciones
   const scanLineAnim = useState(new Animated.Value(0))[0];
   const pulseAnim = useState(new Animated.Value(1))[0];
   const modalAnim = useState(new Animated.Value(0))[0];
+  const successAnim = useState(new Animated.Value(0))[0];
 
   useEffect(() => {
     if (visible) {
@@ -52,8 +55,36 @@ export function QRScanner({ visible, onClose, onProductScanned }: QRScannerProps
       setScanned(false);
       setScannedProduct(null);
       setShowProductModal(false);
+      setShowSuccessFeedback(false);
+      setLastAddedProduct('');
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (showSuccessFeedback) {
+      // Animación de entrada
+      Animated.spring(successAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }).start();
+
+      // Ocultar después de 2 segundos
+      const timer = setTimeout(() => {
+        Animated.timing(successAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }).start(() => {
+          setShowSuccessFeedback(false);
+          setLastAddedProduct('');
+        });
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessFeedback]);
 
   useEffect(() => {
     if (showProductModal) {
@@ -125,8 +156,17 @@ export function QRScanner({ visible, onClose, onProductScanned }: QRScannerProps
           category: qrData.category || '',
         };
         
-        setScannedProduct(product);
-        setShowProductModal(true);
+        // Agregar directamente al carrito sin mostrar modal
+        onProductScanned(product);
+        
+        // Mostrar feedback visual
+        setLastAddedProduct(product.name);
+        setShowSuccessFeedback(true);
+        
+        // Resetear después de un pequeño delay para permitir escaneo continuo
+        setTimeout(() => {
+          setScanned(false);
+        }, 1000);
       } else {
         Alert.alert('QR Inválido', 'Este código QR no contiene información de producto válida');
         setScanned(false);
@@ -331,6 +371,47 @@ export function QRScanner({ visible, onClose, onProductScanned }: QRScannerProps
             </View>
           </View>
         </CameraView>
+
+        {/* Feedback de producto agregado */}
+        {showSuccessFeedback && (
+          <Animated.View
+            style={[
+              styles.successFeedback,
+              {
+                transform: [
+                  { 
+                    translateY: successAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [100, 0],
+                    })
+                  },
+                  { 
+                    scale: successAnim.interpolate({
+                      inputRange: [0, 0.5, 1],
+                      outputRange: [0.5, 1.1, 1],
+                    })
+                  }
+                ],
+                opacity: successAnim,
+              },
+            ]}
+          >
+            <BlurView intensity={90} tint="dark" style={styles.successFeedbackBlur}>
+              <LinearGradient
+                colors={['#43e97b', '#38f9d7']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.successFeedbackGradient}
+              >
+                <Ionicons name="checkmark-circle" size={32} color="#fff" />
+                <Text style={styles.successFeedbackText}>✓ Agregado</Text>
+                <Text style={styles.successFeedbackSubtext} numberOfLines={1}>
+                  {lastAddedProduct}
+                </Text>
+              </LinearGradient>
+            </BlurView>
+          </Animated.View>
+        )}
 
         {/* Modal de detalle del producto - Solo mostrar si hay producto escaneado */}
         {showProductModal && scannedProduct && (
@@ -751,5 +832,37 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Estilos para feedback de éxito
+  successFeedback: {
+    position: 'absolute',
+    top: 100,
+    left: 20,
+    right: 20,
+    alignItems: 'center',
+  },
+  successFeedbackBlur: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  successFeedbackGradient: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    minWidth: 200,
+  },
+  successFeedbackText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 4,
+  },
+  successFeedbackSubtext: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 14,
+    marginTop: 2,
+    maxWidth: 200,
   },
 });

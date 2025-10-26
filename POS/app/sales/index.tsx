@@ -50,11 +50,11 @@ export default function SalesScreen() {
     if (existingProduct) {
       // Usar el producto de la lista (con datos actualizados)
       addToCart(existingProduct);
-      alertHelpers.success(showAlert, 'Producto Agregado', `${existingProduct.name} agregado al carrito`);
+      // No mostrar alert para escaneo continuo
     } else {
       // Si no se encuentra, usar los datos del QR
       addToCart(scannedProduct);
-      alertHelpers.success(showAlert, 'Producto Agregado', `${scannedProduct.name} agregado al carrito`);
+      // No mostrar alert para escaneo continuo
     }
   };
   
