@@ -36,6 +36,13 @@ const menuItems = [
     shadowColor: '#43e97b',
   },
   {
+    title: 'Envases & Devoluciones',
+    icon: 'repeat-outline',
+    route: '/(tabs)/returns',
+    gradient: ['#fa709a', '#fee140'],
+    shadowColor: '#fa709a',
+  },
+  {
     title: 'Reportes',
     icon: 'document-text-outline',
     route: '/reports',
