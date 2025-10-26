@@ -15,6 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
+import * as Print from 'expo-print';
+import * as FileSystem from 'expo-file-system';
 
 const { width, height } = Dimensions.get('window');
 
@@ -128,27 +130,87 @@ export function QRGenerator({ visible, product, onClose }: QRGeneratorProps) {
       const uri = await captureQR();
       if (!uri) return;
 
-      const isAvailable = await Sharing.isAvailableAsync();
-      if (!isAvailable) {
-        Alert.alert('Error', 'Compartir no está disponible en este dispositivo');
-        return;
-      }
-
       if (Platform.OS === 'android') {
+        // Crear un File para leer la imagen
+        const { File } = await import('expo-file-system');
+        const imageFile = new File(uri);
+        const arrayBuffer = await imageFile.arrayBuffer();
+        const base64Image = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+
+                 // Generar HTML con el QR
+         const html = `
+           <!DOCTYPE html>
+           <html>
+             <head>
+               <meta charset="UTF-8">
+               <title>QR Code - ${product.name}</title>
+               <style>
+                 @page {
+                   margin: 0;
+                   size: A4;
+                 }
+                 body {
+                   font-family: Arial, sans-serif;
+                   margin: 0;
+                   padding: 0;
+                   height: 100vh;
+                   display: flex;
+                   flex-direction: column;
+                   align-items: center;
+                   justify-content: center;
+                 }
+                 .container {
+                   text-align: center;
+                   padding: 40px 20px;
+                 }
+                 h1 {
+                   font-size: 28px;
+                   margin-bottom: 15px;
+                   color: #333;
+                   page-break-after: avoid;
+                 }
+                 .product-info {
+                   margin: 25px 0;
+                   font-size: 16px;
+                   color: #666;
+                   page-break-inside: avoid;
+                 }
+                 .qr-image {
+                   width: 300px;
+                   height: 300px;
+                   margin: 25px auto;
+                   display: block;
+                   page-break-inside: avoid;
+                 }
+                 .info-row {
+                   margin: 8px 0;
+                 }
+               </style>
+             </head>
+             <body>
+               <div class="container">
+                 <h1>${product.name}</h1>
+                 <img src="data:image/png;base64,${base64Image}" class="qr-image" alt="QR Code" />
+                 <div class="product-info">
+                   <div class="info-row"><strong>Código:</strong> ${product.code}</div>
+                   <div class="info-row"><strong>Precio:</strong> $${(parseFloat(String(product.sale_price)) || 0).toFixed(2)}</div>
+                   <div class="info-row"><strong>Stock:</strong> ${parseInt(String(product.stock)) || 0}</div>
+                   ${product.category ? `<div class="info-row"><strong>Categoría:</strong> ${product.category}</div>` : ''}
+                 </div>
+               </div>
+             </body>
+           </html>
+         `;
+
+                 // Llamar directamente a la impresión (Android abrirá el diálogo de impresión)
+         await Print.printAsync({ html });
+      } else {
+        // iOS: solo compartir la imagen
         await Sharing.shareAsync(uri, {
           mimeType: 'image/png',
           dialogTitle: `Imprimir QR - ${product.name}`,
           UTI: 'public.png',
         });
-      } else {
-        Alert.alert(
-          'Imprimir QR',
-          'Para imprimir, guarda el QR primero y luego imprímelo desde tu galería de fotos.',
-          [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Guardar', onPress: handleDownload }
-          ]
-        );
       }
     } catch (error) {
       console.error('Error printing QR:', error);
