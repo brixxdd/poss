@@ -8,6 +8,7 @@ import {
   Dimensions,
   Alert,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -36,18 +37,40 @@ export function QRScanner({ visible, onClose, onProductScanned }: QRScannerProps
   const [scanned, setScanned] = useState(false);
   const [facing, setFacing] = useState<CameraType>('back');
   const [flashOn, setFlashOn] = useState(false);
+  const [scannedProduct, setScannedProduct] = useState<Product | null>(null);
+  const [showProductModal, setShowProductModal] = useState(false);
   
   // Animaciones
   const scanLineAnim = useState(new Animated.Value(0))[0];
   const pulseAnim = useState(new Animated.Value(1))[0];
+  const modalAnim = useState(new Animated.Value(0))[0];
 
   useEffect(() => {
     if (visible) {
       startAnimations();
     } else {
       setScanned(false);
+      setScannedProduct(null);
+      setShowProductModal(false);
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (showProductModal) {
+      Animated.spring(modalAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 7,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(modalAnim, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [showProductModal]);
 
   const startAnimations = () => {
     // Animación de la línea de escaneo
@@ -102,8 +125,8 @@ export function QRScanner({ visible, onClose, onProductScanned }: QRScannerProps
           category: qrData.category || '',
         };
         
-        onProductScanned(product);
-        onClose();
+        setScannedProduct(product);
+        setShowProductModal(true);
       } else {
         Alert.alert('QR Inválido', 'Este código QR no contiene información de producto válida');
         setScanned(false);
@@ -112,6 +135,27 @@ export function QRScanner({ visible, onClose, onProductScanned }: QRScannerProps
       Alert.alert('Error', 'No se pudo leer el código QR. Asegúrate de que sea un código de producto válido.');
       setScanned(false);
     }
+  };
+
+  const handleAddToCart = () => {
+    if (scannedProduct) {
+      onProductScanned(scannedProduct);
+      // Cerrar modal y resetear
+      setShowProductModal(false);
+      setTimeout(() => {
+        setScanned(false);
+        setScannedProduct(null);
+      }, 300);
+    }
+  };
+
+  const handleContinueScanning = () => {
+    // Cerrar modal y permitir escanear de nuevo
+    setShowProductModal(false);
+    setTimeout(() => {
+      setScanned(false);
+      setScannedProduct(null);
+    }, 300);
   };
 
   const toggleCameraFacing = () => {
@@ -167,6 +211,16 @@ export function QRScanner({ visible, onClose, onProductScanned }: QRScannerProps
       </Modal>
     );
   }
+
+  const modalTranslateY = modalAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [300, 0],
+  });
+
+  const modalOpacity = modalAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
 
   return (
     <Modal
@@ -277,6 +331,86 @@ export function QRScanner({ visible, onClose, onProductScanned }: QRScannerProps
             </View>
           </View>
         </CameraView>
+
+        {/* Modal de detalle del producto - Solo mostrar si hay producto escaneado */}
+        {showProductModal && scannedProduct && (
+          <Animated.View
+            style={[
+              styles.productModal,
+              {
+                transform: [{ translateY: modalTranslateY }],
+                opacity: modalOpacity,
+              },
+            ]}
+          >
+            <View style={styles.modalContent}>
+              <TouchableOpacity onPress={handleContinueScanning} style={styles.closeModalButton}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>✅ Producto Escaneado</Text>
+              
+              <ScrollView 
+                contentContainerStyle={styles.modalDetails}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={styles.productInfoCard}>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.modalDetailLabel}>Nombre:</Text>
+                    <Text style={styles.modalDetailValue}>{scannedProduct.name}</Text>
+                  </View>
+                  
+                  <View style={styles.infoRow}>
+                    <Text style={styles.modalDetailLabel}>Código:</Text>
+                    <Text style={styles.modalDetailValue}>{scannedProduct.code}</Text>
+                  </View>
+                  
+                  <View style={[styles.infoRow, styles.priceRow]}>
+                    <Text style={styles.modalDetailLabel}>Precio:</Text>
+                    <View style={styles.priceContainer}>
+                      <Text style={styles.priceValue}>${scannedProduct.price.toFixed(2)}</Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.infoRow}>
+                    <Text style={styles.modalDetailLabel}>Stock:</Text>
+                    <View style={[
+                      styles.stockBadge, 
+                      scannedProduct.stock > 10 ? styles.stockGood : styles.stockLow
+                    ]}>
+                      <Text style={styles.stockText}>{scannedProduct.stock} unidades</Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.infoRow}>
+                    <Text style={styles.modalDetailLabel}>Categoría:</Text>
+                    <Text style={styles.modalDetailValue}>{scannedProduct.category || 'N/A'}</Text>
+                  </View>
+                </View>
+              </ScrollView>
+              
+              <View style={styles.buttonGroup}>
+                <TouchableOpacity 
+                  onPress={handleContinueScanning} 
+                  style={styles.cancelButtonModal}
+                >
+                  <Text style={styles.cancelButtonTextModal}>Escanear Otro</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity onPress={handleAddToCart} style={styles.addCartButton}>
+                  <LinearGradient
+                    colors={['#f093fb', '#f5576c']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.addCartButtonGradient}
+                  >
+                    <Ionicons name="cart" size={20} color="#fff" />
+                    <Text style={styles.addCartButtonText}>Agregar al Carrito</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Animated.View>
+        )}
       </View>
     </Modal>
   );
@@ -485,5 +619,137 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: 'rgba(255,255,255,0.7)',
     fontSize: 14,
+  },
+  // Estilos para el modal de detalle del producto
+  productModal: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    padding: 20,
+    paddingTop: 40,
+    maxHeight: height * 0.6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  modalContent: {
+    position: 'relative',
+  },
+  closeModalButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  modalTitle: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  modalDetails: {
+    paddingBottom: 20,
+  },
+  modalDetailLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 16,
+    marginBottom: 5,
+  },
+  modalDetailValue: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 15,
+  },
+  addCartButton: {
+    width: '100%',
+    borderRadius: 15,
+    overflow: 'hidden',
+    alignItems: 'center',
+    paddingVertical: 15,
+  },
+  addCartButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15,
+    gap: 10,
+  },
+  addCartButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  productInfoCard: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 15,
+    padding: 15,
+    marginTop: 10,
+  },
+  infoRow: {
+    marginBottom: 15,
+  },
+  priceRow: {
+    marginBottom: 20,
+  },
+  priceContainer: {
+    backgroundColor: 'rgba(240,147,251,0.2)',
+    borderRadius: 10,
+    padding: 8,
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  priceValue: {
+    color: '#f093fb',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  stockBadge: {
+    borderRadius: 15,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginTop: 5,
+    alignSelf: 'flex-start',
+  },
+  stockGood: {
+    backgroundColor: 'rgba(67,233,123,0.2)',
+  },
+  stockLow: {
+    backgroundColor: 'rgba(245,87,108,0.2)',
+  },
+  stockText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 10,
+  },
+  cancelButtonModal: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 15,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  cancelButtonTextModal: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

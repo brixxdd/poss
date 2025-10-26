@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,13 @@ import {
   Dimensions,
   Share,
   Alert,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import QRCode from 'react-native-qrcode-svg';
+import { captureRef } from 'react-native-view-shot';
 
 const { width, height } = Dimensions.get('window');
 
@@ -32,6 +35,7 @@ interface QRGeneratorProps {
 
 export function QRGenerator({ visible, product, onClose }: QRGeneratorProps) {
   const [qrSize, setQrSize] = useState(200);
+  const qrRef = useRef<any>(null);
 
   if (!product) return null;
 
@@ -51,45 +55,60 @@ export function QRGenerator({ visible, product, onClose }: QRGeneratorProps) {
 
   const handleShare = async () => {
     try {
+      // Capturar el QR como imagen
+      const uri = await captureRef(qrRef, {
+        format: 'png',
+        quality: 0.9,
+      });
+      
       await Share.share({
-        message: `Código QR para ${product.name}\nPrecio: $${product.sale_price}\nStock: ${product.stock}\n\nDatos QR:\n${qrString}`,
+        url: Platform.OS === 'ios' ? uri : `file://${uri}`,
         title: `QR - ${product.name}`,
       });
     } catch (error) {
+      console.error('Error sharing QR:', error);
       Alert.alert('Error', 'No se pudo compartir el código QR');
     }
   };
 
   const handleDownload = async () => {
     try {
-      // Generar texto con formato que se puede compartir
-      const qrContent = `═══════════════════════════════════
-    CÓDIGO QR DE PRODUCTO
-═══════════════════════════════════
-
-Producto: ${product.name}
-Código: ${product.code}
-Precio: $${(parseFloat(String(product.sale_price)) || 0).toFixed(2)}
-Stock: ${parseInt(String(product.stock)) || 0}
-Categoría: ${product.category || 'Sin categoría'}
-
-─────────────────────────────────
-DATOS PARA ESCANEO:
-─────────────────────────────────
-
-${qrString}
-
-═══════════════════════════════════
-Este código QR contiene los datos del
-producto para escaneo rápido en POS.
-═══════════════════════════════════`;
-
+      // Capturar el QR como imagen
+      const uri = await captureRef(qrRef, {
+        format: 'png',
+        quality: 0.9,
+      });
+      
       await Share.share({
-        message: qrContent,
+        url: Platform.OS === 'ios' ? uri : `file://${uri}`,
         title: `QR - ${product.name}`,
       });
     } catch (error) {
+      console.error('Error downloading QR:', error);
       Alert.alert('Error', 'No se pudo descargar el código QR');
+    }
+  };
+
+  const handlePrint = async () => {
+    try {
+      if (Platform.OS === 'android') {
+        // Capturar el QR
+        const uri = await captureRef(qrRef, {
+          format: 'png',
+          quality: 1.0,
+        });
+        
+        // Compartir con opción de imprimir (Android detectará impresoras disponibles)
+        await Share.share({
+          url: `file://${uri}`,
+          title: `Imprimir QR - ${product.name}`,
+        });
+      } else {
+        Alert.alert('Info', 'La impresión desde la app está disponible en Android. Usa "Compartir" para guardar el QR.');
+      }
+    } catch (error) {
+      console.error('Error printing QR:', error);
+      Alert.alert('Error', 'No se pudo imprimir el código QR');
     }
   };
 
@@ -127,14 +146,15 @@ producto para escaneo rápido en POS.
                 </TouchableOpacity>
               </View>
 
-              {/* QR Code Placeholder */}
+              {/* QR Code */}
               <View style={styles.qrContainer}>
-                <View style={styles.qrWrapper}>
-                  <View style={styles.qrPlaceholder}>
-                    <Ionicons name="qr-code" size={qrSize * 0.3} color="#000" />
-                    <Text style={styles.qrPlaceholderText}>QR Code</Text>
-                    <Text style={styles.qrDataText}>{qrString.substring(0, 50)}...</Text>
-                  </View>
+                <View style={styles.qrWrapper} ref={qrRef}>
+                  <QRCode
+                    value={qrString}
+                    size={qrSize}
+                    backgroundColor="#fff"
+                    color="#000"
+                  />
                 </View>
                 
                 {/* Product Info */}
@@ -182,7 +202,7 @@ producto para escaneo rápido en POS.
               </View>
 
               {/* Action Buttons */}
-              <View style={styles.actionButtons}>
+              <View style={styles.actionButtonsRow1}>
                 <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
                   <LinearGradient
                     colors={['#4facfe', '#00f2fe']}
@@ -207,6 +227,18 @@ producto para escaneo rápido en POS.
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
+
+              <TouchableOpacity style={styles.actionButtonFull} onPress={handlePrint}>
+                <LinearGradient
+                  colors={['#f093fb', '#f5576c']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.actionButtonGradient}
+                >
+                  <Ionicons name="print" size={20} color="#fff" />
+                  <Text style={styles.actionButtonText}>Imprimir QR Code</Text>
+                </LinearGradient>
+              </TouchableOpacity>
 
               {/* Instructions */}
               <View style={styles.instructions}>
@@ -302,30 +334,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 10,
-  },
-  qrPlaceholder: {
-    width: 200,
-    height: 200,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#e9ecef',
-    borderStyle: 'dashed',
-  },
-  qrPlaceholderText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#6c757d',
-    marginTop: 10,
-  },
-  qrDataText: {
-    fontSize: 10,
-    color: '#6c757d',
-    textAlign: 'center',
-    marginTop: 5,
-    paddingHorizontal: 10,
   },
   productInfo: {
     backgroundColor: 'rgba(255,255,255,0.1)',
@@ -381,10 +391,21 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 15,
   },
+  actionButtonsRow1: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 10,
+  },
   actionButton: {
     flex: 1,
     borderRadius: 15,
     overflow: 'hidden',
+  },
+  actionButtonFull: {
+    width: '100%',
+    borderRadius: 15,
+    overflow: 'hidden',
+    marginBottom: 15,
   },
   actionButtonGradient: {
     flexDirection: 'row',
