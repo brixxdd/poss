@@ -275,9 +275,9 @@ export default function EmployeeLayout() {
         }}
       />
       <Tabs.Screen
-        name="inventory"
+        name="dashboard"
         options={{
-          title: 'Inventario',
+          title: 'Dashboard',
           headerShown: false,
           headerStyle: {
             backgroundColor: '#0f0c29',
@@ -299,10 +299,10 @@ export default function EmployeeLayout() {
           headerShadowVisible: false,
           tabBarIcon: ({ color, focused }) => (
             <AnimatedTabBarIcon
-              name={focused ? "list" : "list-outline"}
+              name={focused ? "bar-chart" : "bar-chart-outline"}
               color={color}
               focused={focused}
-              gradientColors={['rgba(67,233,123,0.25)', 'rgba(56,249,215,0.25)']}
+              gradientColors={['rgba(240,147,251,0.25)', 'rgba(245,87,108,0.25)']}
             />
           ),
         }}

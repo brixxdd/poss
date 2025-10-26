@@ -590,7 +590,7 @@ export default function SalesScreen() {
         ]}
       >
         <TouchableOpacity 
-          onPress={() => router.back()} 
+          onPress={() => router.push('/')} 
           style={styles.backButton}
           activeOpacity={0.8}
         >
