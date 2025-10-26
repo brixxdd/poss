@@ -1,7 +1,7 @@
 -- Insert sample users
 INSERT INTO users (username, password_hash, role) VALUES
-    ('admin', 'hashed_password_admin', 'admin'),
-    ('employee1', 'hashed_password_employee1', 'employee');
+    ('admin', 'admin', 'admin'),
+    ('employee1', 'employee1', 'employee');
 
 -- Insert sample providers
 INSERT INTO providers (name, contact_info) VALUES

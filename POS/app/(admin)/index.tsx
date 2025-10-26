@@ -49,6 +49,13 @@ const menuItems = [
     gradient: ['#43e97b', '#38f9d7'] as [string, string],
     shadowColor: '#43e97b',
   },
+  {
+    title: 'Alertas',
+    icon: 'notifications-outline',
+    route: '/alerts',
+    gradient: ['#ff9a9e', '#fecfef'],
+    shadowColor: '#ff9a9e',
+  },
 ];
 
 export default function AdminIndex() {

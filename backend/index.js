@@ -3,6 +3,7 @@ const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const cors = require('cors');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -10,6 +11,9 @@ const jwtSecret = process.env.JWT_SECRET;
 
 // Middleware para parsear JSON
 app.use(express.json());
+
+// Habilitar CORS
+app.use(cors());
 
 // Middleware para loguear TODAS las peticiones
 app.use((req, res, next) => {
@@ -23,16 +27,30 @@ app.use((req, res, next) => {
 });
 
 // Configuración de la base de datos PostgreSQL
-const pool = new Pool({
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB_NAME,
-    password: process.env.DB_PASSWORD,
-    port: process.env.DB_PORT,
+const poolOptions = {
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
-});
+    // CORRECCIÓN ZONA HORARIA: Configurar zona horaria para Neon (UTC) y convertir a local
+    // Esto asegura que CURRENT_DATE use la zona horaria correcta
+    options: '-c timezone=America/Mexico_City', // Cambia esto a tu zona horaria
+};
+
+if (process.env.DATABASE_URL) {
+    poolOptions.connectionString = process.env.DATABASE_URL;
+    // For services like Neon that require SSL, and we don't have the CA certificate
+    if (poolOptions.connectionString.includes('sslmode=require')) {
+        poolOptions.ssl = { rejectUnauthorized: false };
+    }
+} else {
+    poolOptions.user = process.env.DB_USER;
+    poolOptions.host = process.env.DB_HOST;
+    poolOptions.database = process.env.DB_NAME;
+    poolOptions.password = process.env.DB_PASSWORD;
+    poolOptions.port = process.env.DB_PORT;
+}
+
+const pool = new Pool(poolOptions);
 
 // Test database connection
 const testDatabaseConnection = async () => {
@@ -507,9 +525,222 @@ app.get('/api/sales/:id', authenticateToken, async (req, res) => {
     }
 });
 
+const { runStockAlerts, getSalesPrediction, getTopProducts, evaluateSalesPredictions, getModelMetrics, getTotalSalesToday, getAvgDailySalesForRange } = require('./analytics');
+const cron = require('node-cron');
+
+// ============================================
+// RUTAS DE ANALYTICS
+// ============================================
+
+// Ruta para evaluar predicciones y almacenar métricas (solo para admins)
+app.post('/api/analytics/evaluate-predictions', authenticateToken, authorizeAdmin, async (req, res) => {
+    try {
+        const result = await evaluateSalesPredictions(pool);
+        res.status(200).json(result);
+    } catch (error) {
+        console.error('Error evaluating predictions:', error);
+        res.status(500).json({ message: 'Failed to evaluate predictions.', error: error.message });
+    }
+});
+
+// Ruta para obtener el total de ventas de hoy
+app.get('/api/analytics/sales-today', authenticateToken, async (req, res) => {
+    try {
+        const totalSales = await getTotalSalesToday(pool);
+        res.json({ totalSalesToday: totalSales });
+    } catch (error) {
+        console.error('Error fetching total sales today:', error);
+        res.status(500).json({ message: 'Error fetching total sales today', error: error.message });
+    }
+});
+
+// Ruta para obtener el promedio de ventas diarias en un rango
+app.get('/api/analytics/avg-daily-sales', authenticateToken, async (req, res) => {
+    const range = parseInt(req.query.range || '7', 10); // Default to 7 days
+    try {
+        const avgSales = await getAvgDailySalesForRange(pool, range);
+        res.json({ average_daily_sales: avgSales }); // CORREGIDO: Nombre consistente con frontend
+    } catch (error) {
+        console.error('Error fetching average daily sales:', error);
+        res.status(500).json({ message: 'Error fetching average daily sales', error: error.message });
+    }
+});
+
+// Ruta para obtener predicciones de ventas por producto
+app.get('/api/analytics/sales-prediction/:productId', authenticateToken, async (req, res) => {
+    const { productId } = req.params;
+    const horizon = parseInt(req.query.horizon || '7', 10);
+    const method = req.query.method || 'auto';
+
+    try {
+        const prediction = await getSalesPrediction(pool, productId, horizon, method);
+        res.json(prediction);
+    } catch (error) {
+        console.error('Error fetching sales prediction:', error);
+        res.status(500).json({ message: 'Error fetching sales prediction', error: error.message });
+    }
+});
+
+// Ruta para ejecutar manualmente el cálculo de alertas (solo para admins)
+app.post('/api/analytics/run-alerts', authenticateToken, authorizeAdmin, async (req, res) => {
+    try {
+        const result = await runStockAlerts(pool);
+        res.status(200).json(result);
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to run stock alert calculation.', error: error.message });
+    }
+});
+
+// Ruta para obtener las alertas de stock generadas
+app.get('/api/analytics/alerts', authenticateToken, async (req, res) => {
+    try {
+                const query = `
+            SELECT
+                sa.id,
+                sa.product_id,
+                sa.alert_type,
+                sa.severity,
+                sa.predicted_out_date,
+                sa.days_until_stockout,
+                p.name AS product_name,
+                p.stock AS current_stock
+            FROM stock_alerts sa
+            JOIN products p ON sa.product_id = p.id
+            ORDER BY sa.severity DESC, sa.days_until_stockout ASC
+        `;
+        const result = await pool.query(query);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching stock alerts:', error);
+        res.status(500).json({ message: 'Error fetching stock alerts' });
+    }
+});
+
+
+// Ruta para obtener el historial de ventas de un producto para los gráficos
+app.get('/api/analytics/sales-history/:productId', authenticateToken, async (req, res) => {
+    const { productId } = req.params;
+    try {
+        const query = `
+            SELECT 
+                DATE(sale_date) AS day,
+                SUM(quantity)::int AS qty
+            FROM sale_items
+            JOIN sales ON sales.id = sale_items.sale_id
+            WHERE product_id = $1 AND sale_date >= NOW() - INTERVAL '90 days'
+            GROUP BY DATE(sale_date)
+            ORDER BY day;
+        `;
+        const result = await pool.query(query, [productId]);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching sales history:', error);
+        res.status(500).json({ message: 'Error fetching sales history' });
+    }
+});
+
+// Ruta para obtener los productos más vendidos
+app.get('/api/analytics/top-products', authenticateToken, async (req, res) => {
+    const range = parseInt(req.query.range || '30', 10); // Default to last 30 days
+    const limit = parseInt(req.query.limit || '5', 10);   // Default to top 5 products
+
+    try {
+        const topProducts = await getTopProducts(pool, range, limit);
+        res.json(topProducts);
+    } catch (error) {
+        console.error('Error fetching top products:', error);
+        res.status(500).json({ message: 'Error fetching top products', error: error.message });
+    }
+});
+
+// Ruta para obtener las métricas de evaluación de los modelos
+app.get('/api/analytics/metrics', authenticateToken, async (req, res) => {
+    try {
+        const metrics = await getModelMetrics(pool);
+        res.json(metrics);
+    } catch (error) {
+        console.error('Error fetching model metrics:', error);
+        res.status(500).json({ message: 'Error fetching model metrics', error: error.message });
+    }
+});
+
+// Ruta para obtener el total de ventas de hoy
+app.get('/api/analytics/total-sales-today', authenticateToken, async (req, res) => {
+    try {
+        const totalSales = await getTotalSalesToday(pool);
+        res.json({ total_sales: totalSales });
+    } catch (error) {
+        console.error('Error fetching total sales for today:', error);
+        res.status(500).json({ message: 'Error fetching total sales for today', error: error.message });
+    }
+});
+
+// RUTA DUPLICADA ELIMINADA (estaba en línea 546-555)
+
+// Ruta para obtener las métricas de rendimiento de los modelos
+app.get('/api/analytics/model-metrics', authenticateToken, async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                mm.id,
+                mm.model_version,
+                mm.product_id,
+                p.name as product_name,
+                mm.horizon,
+                mm.mae,
+                mm.rmse,
+                mm.evaluated_at
+            FROM model_metrics mm
+            JOIN products p ON mm.product_id = p.id
+            ORDER BY mm.evaluated_at DESC;
+        `;
+        const result = await pool.query(query);
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching model metrics:', error);
+        res.status(500).json({ message: 'Error fetching model metrics', error: error.message });
+    }
+});
+
+
 // ============================================
 // RUTAS ADICIONALES
 // ============================================
+
+// ============================================
+// SCHEDULER
+// ============================================
+
+// Schedule daily tasks
+if (process.env.NODE_ENV !== 'test') { // Avoid running scheduler during tests
+    // Schedule stock alert calculations to run daily at 1:00 AM
+    cron.schedule('0 1 * * *', async () => {
+        console.log('==================================================');
+        console.log('⏰ Running scheduled task: runStockAlerts');
+        console.log('==================================================');
+        try {
+            await runStockAlerts(pool);
+            console.log('✅ Scheduled task runStockAlerts completed successfully.');
+        } catch (error) {
+            console.error('❌ Error running scheduled task runStockAlerts:', error);
+        }
+    });
+
+    // Schedule prediction evaluation to run daily at 2:00 AM
+    cron.schedule('0 2 * * *', async () => {
+        console.log('==================================================');
+        console.log('⏰ Running scheduled task: evaluateSalesPredictions');
+        console.log('==================================================');
+        try {
+            await evaluateSalesPredictions(pool);
+            console.log('✅ Scheduled task evaluateSalesPredictions completed successfully.');
+        } catch (error) {
+            console.error('❌ Error running scheduled task evaluateSalesPredictions:', error);
+        }
+    });
+
+    console.log('✅ Daily analytics jobs scheduled.');
+}
 
 app.get('/api/protected', authenticateToken, (req, res) => {
     res.json({ message: `Welcome ${req.user.username}! You have access to protected data.` });
