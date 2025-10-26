@@ -41,8 +41,8 @@ export function QRGenerator({ visible, product, onClose }: QRGeneratorProps) {
     id: product.id,
     name: product.name,
     code: product.code,
-    price: product.sale_price,
-    stock: product.stock,
+    price: parseFloat(String(product.sale_price)) || 0,
+    stock: parseInt(String(product.stock)) || 0,
     category: product.category || '',
     timestamp: new Date().toISOString(),
   };
@@ -60,9 +60,37 @@ export function QRGenerator({ visible, product, onClose }: QRGeneratorProps) {
     }
   };
 
-  const handleDownload = () => {
-    // Aquí podrías implementar la descarga del QR como imagen
-    Alert.alert('Descargar', 'Función de descarga implementada');
+  const handleDownload = async () => {
+    try {
+      // Generar texto con formato que se puede compartir
+      const qrContent = `═══════════════════════════════════
+    CÓDIGO QR DE PRODUCTO
+═══════════════════════════════════
+
+Producto: ${product.name}
+Código: ${product.code}
+Precio: $${(parseFloat(String(product.sale_price)) || 0).toFixed(2)}
+Stock: ${parseInt(String(product.stock)) || 0}
+Categoría: ${product.category || 'Sin categoría'}
+
+─────────────────────────────────
+DATOS PARA ESCANEO:
+─────────────────────────────────
+
+${qrString}
+
+═══════════════════════════════════
+Este código QR contiene los datos del
+producto para escaneo rápido en POS.
+═══════════════════════════════════`;
+
+      await Share.share({
+        message: qrContent,
+        title: `QR - ${product.name}`,
+      });
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo descargar el código QR');
+    }
   };
 
   return (
@@ -113,11 +141,11 @@ export function QRGenerator({ visible, product, onClose }: QRGeneratorProps) {
                 <View style={styles.productInfo}>
                   <View style={styles.infoRow}>
                     <Ionicons name="pricetag" size={16} color="#43e97b" />
-                    <Text style={styles.infoText}>${product.sale_price.toFixed(2)}</Text>
+                    <Text style={styles.infoText}>${(parseFloat(String(product.sale_price)) || 0).toFixed(2)}</Text>
                   </View>
                   <View style={styles.infoRow}>
                     <Ionicons name="cube" size={16} color="#4facfe" />
-                    <Text style={styles.infoText}>Stock: {product.stock}</Text>
+                    <Text style={styles.infoText}>Stock: {parseInt(String(product.stock)) || 0}</Text>
                   </View>
                   {product.category && (
                     <View style={styles.infoRow}>

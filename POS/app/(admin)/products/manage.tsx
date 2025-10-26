@@ -21,6 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useAlert, alertHelpers } from '../../components/AlertProvider';
+import { QRGenerator } from '../../components/QRGenerator';
 
 const { width } = Dimensions.get('window');
 
@@ -41,6 +42,8 @@ export default function ManageProductsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showQR, setShowQR] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const router = useRouter();
   const { showAlert } = useAlert();
 
@@ -120,6 +123,11 @@ export default function ManageProductsScreen() {
         error.response?.data?.message || 'No se pudo eliminar el producto.'
       );
     }
+  };
+
+  const handleGenerateQR = (product: Product) => {
+    setSelectedProduct(product);
+    setShowQR(true);
   };
 
   const filteredProducts = products.filter(product =>
@@ -231,6 +239,22 @@ export default function ManageProductsScreen() {
                 >
                   <Ionicons name="create" size={16} color="#fff" />
                   <Text style={styles.actionButtonText}>Editar</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => handleGenerateQR(item)}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#f093fb', '#f5576c']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.actionButtonGradient}
+                >
+                  <Ionicons name="qr-code" size={16} color="#fff" />
+                  <Text style={styles.actionButtonText}>QR</Text>
                 </LinearGradient>
               </TouchableOpacity>
 
@@ -400,6 +424,16 @@ export default function ManageProductsScreen() {
           />
         )}
       </Animated.View>
+
+      {/* QR Generator Modal */}
+      <QRGenerator
+        visible={showQR}
+        product={selectedProduct}
+        onClose={() => {
+          setShowQR(false);
+          setSelectedProduct(null);
+        }}
+      />
     </View>
   );
 }
