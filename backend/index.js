@@ -48,6 +48,16 @@ if (process.env.DATABASE_URL) {
     poolOptions.database = process.env.DB_NAME;
     poolOptions.password = process.env.DB_PASSWORD;
     poolOptions.port = process.env.DB_PORT;
+    
+    // Debug: Ver qué valores están llegando
+    console.log('🔍 Database Config:', {
+        user: poolOptions.user,
+        host: poolOptions.host,
+        database: poolOptions.database,
+        password: poolOptions.password ? '***' + poolOptions.password.substring(poolOptions.password.length - 2) : 'UNDEFINED',
+        passwordType: typeof poolOptions.password,
+        port: poolOptions.port
+    });
 }
 
 const pool = new Pool(poolOptions);

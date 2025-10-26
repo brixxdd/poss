@@ -5,7 +5,7 @@
 DO $$
 DECLARE
     producto_id UUID;
-    usuario_id UUID;
+    usuario_id INTEGER;  -- Changed from UUID to INTEGER
     producto_nombre TEXT;
     i INTEGER;
     fecha TIMESTAMP;

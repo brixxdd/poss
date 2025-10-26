@@ -46,7 +46,13 @@ export default function AdminLayout() {
     return null;
   }
 
-  return <Stack />;
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false, // Ocultar headers por defecto
+      }}
+    />
+  );
 }
 
 const styles = StyleSheet.create({

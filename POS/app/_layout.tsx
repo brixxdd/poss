@@ -4,7 +4,11 @@ import { AlertProvider } from './components/AlertProvider';
 export default function RootLayout() {
   return (
     <AlertProvider>
-      <Stack>
+      <Stack
+        screenOptions={{
+          headerShown: false, // Desactivar headers en toda la app
+        }}
+      >
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="register" options={{ headerShown: false }} />
         <Stack.Screen name="(admin)" options={{ headerShown: false }} />

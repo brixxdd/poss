@@ -92,7 +92,7 @@ function AnimatedTabBarIcon({
             ]}
           >
             <LinearGradient
-              colors={gradientColors}
+              colors={gradientColors as [string, string]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.iconGradient}
@@ -121,7 +121,7 @@ function AnimatedTabBarIcon({
       {/* Ícono */}
       <Animated.View style={{ transform: [{ rotate: focused ? rotate : '0deg' }] }}>
         <Ionicons 
-          name={name} 
+          name={name as any} 
           size={focused ? 28 : 24} 
           color={color}
           style={focused && styles.iconShadow}
@@ -233,7 +233,7 @@ export default function EmployeeLayout() {
         name="index"
         options={{
           title: 'Ventas',
-          headerShown: true,
+          headerShown: false,
           headerStyle: {
             backgroundColor: '#0f0c29',
           },
@@ -278,7 +278,7 @@ export default function EmployeeLayout() {
         name="inventory"
         options={{
           title: 'Inventario',
-          headerShown: true,
+          headerShown: false,
           headerStyle: {
             backgroundColor: '#0f0c29',
           },
@@ -311,7 +311,7 @@ export default function EmployeeLayout() {
         name="reports"
         options={{
           title: 'Reportes',
-          headerShown: true,
+          headerShown: false,
           headerStyle: {
             backgroundColor: '#0f0c29',
           },
