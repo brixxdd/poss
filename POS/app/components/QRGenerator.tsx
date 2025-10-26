@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Modal,
   Dimensions,
-  Share,
   Alert,
   Platform,
 } from 'react-native';
@@ -15,6 +14,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
 
 const { width, height } = Dimensions.get('window');
 
@@ -35,11 +35,11 @@ interface QRGeneratorProps {
 
 export function QRGenerator({ visible, product, onClose }: QRGeneratorProps) {
   const [qrSize, setQrSize] = useState(200);
+  const [isCapturing, setIsCapturing] = useState(false);
   const qrRef = useRef<any>(null);
 
   if (!product) return null;
 
-  // Estructura de datos del QR
   const qrData = {
     type: 'product',
     id: product.id,
@@ -53,62 +53,106 @@ export function QRGenerator({ visible, product, onClose }: QRGeneratorProps) {
 
   const qrString = JSON.stringify(qrData);
 
-  const handleShare = async () => {
+  const captureQR = async (): Promise<string | null> => {
+    if (isCapturing) return null;
+    
+    setIsCapturing(true);
     try {
-      // Capturar el QR como imagen
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
       const uri = await captureRef(qrRef, {
         format: 'png',
-        quality: 0.9,
+        quality: 1.0,
       });
       
-      await Share.share({
-        url: Platform.OS === 'ios' ? uri : `file://${uri}`,
-        title: `QR - ${product.name}`,
+      if (!uri) {
+        throw new Error('No se pudo capturar el código QR');
+      }
+
+      return uri;
+    } catch (error) {
+      console.error('Error capturing QR:', error);
+      throw error;
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      const uri = await captureQR();
+      if (!uri) return;
+
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert('Error', 'Compartir no está disponible en este dispositivo');
+        return;
+      }
+
+      await Sharing.shareAsync(uri, {
+        mimeType: 'image/png',
+        dialogTitle: `QR - ${product.name}`,
+        UTI: 'public.png',
       });
     } catch (error) {
       console.error('Error sharing QR:', error);
-      Alert.alert('Error', 'No se pudo compartir el código QR');
+      Alert.alert('Error', 'No se pudo compartir el código QR. Por favor, intenta de nuevo.');
     }
   };
 
   const handleDownload = async () => {
     try {
-      // Capturar el QR como imagen
-      const uri = await captureRef(qrRef, {
-        format: 'png',
-        quality: 0.9,
-      });
-      
-      await Share.share({
-        url: Platform.OS === 'ios' ? uri : `file://${uri}`,
-        title: `QR - ${product.name}`,
+      const uri = await captureQR();
+      if (!uri) return;
+
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert('Error', 'Compartir no está disponible en este dispositivo');
+        return;
+      }
+
+      // Usar el diálogo de compartir con opción para guardar
+      await Sharing.shareAsync(uri, {
+        mimeType: 'image/png',
+        dialogTitle: `Guardar QR - ${product.name}`,
+        UTI: 'public.png',
       });
     } catch (error) {
       console.error('Error downloading QR:', error);
-      Alert.alert('Error', 'No se pudo descargar el código QR');
+      Alert.alert('Error', 'No se pudo guardar el código QR. Por favor, intenta de nuevo.');
     }
   };
 
   const handlePrint = async () => {
     try {
+      const uri = await captureQR();
+      if (!uri) return;
+
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert('Error', 'Compartir no está disponible en este dispositivo');
+        return;
+      }
+
       if (Platform.OS === 'android') {
-        // Capturar el QR
-        const uri = await captureRef(qrRef, {
-          format: 'png',
-          quality: 1.0,
-        });
-        
-        // Compartir con opción de imprimir (Android detectará impresoras disponibles)
-        await Share.share({
-          url: `file://${uri}`,
-          title: `Imprimir QR - ${product.name}`,
+        await Sharing.shareAsync(uri, {
+          mimeType: 'image/png',
+          dialogTitle: `Imprimir QR - ${product.name}`,
+          UTI: 'public.png',
         });
       } else {
-        Alert.alert('Info', 'La impresión desde la app está disponible en Android. Usa "Compartir" para guardar el QR.');
+        Alert.alert(
+          'Imprimir QR',
+          'Para imprimir, guarda el QR primero y luego imprímelo desde tu galería de fotos.',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            { text: 'Guardar', onPress: handleDownload }
+          ]
+        );
       }
     } catch (error) {
       console.error('Error printing QR:', error);
-      Alert.alert('Error', 'No se pudo imprimir el código QR');
+      Alert.alert('Error', 'No se pudo preparar el código QR para imprimir.');
     }
   };
 
@@ -130,7 +174,6 @@ export function QRGenerator({ visible, product, onClose }: QRGeneratorProps) {
               end={{ x: 1, y: 1 }}
               style={styles.modalGradient}
             >
-              {/* Header */}
               <View style={styles.header}>
                 <View style={styles.headerLeft}>
                   <View style={styles.iconContainer}>
@@ -146,9 +189,8 @@ export function QRGenerator({ visible, product, onClose }: QRGeneratorProps) {
                 </TouchableOpacity>
               </View>
 
-              {/* QR Code */}
               <View style={styles.qrContainer}>
-                <View style={styles.qrWrapper} ref={qrRef}>
+                <View style={styles.qrWrapper} ref={qrRef} collapsable={false}>
                   <QRCode
                     value={qrString}
                     size={qrSize}
@@ -157,7 +199,6 @@ export function QRGenerator({ visible, product, onClose }: QRGeneratorProps) {
                   />
                 </View>
                 
-                {/* Product Info */}
                 <View style={styles.productInfo}>
                   <View style={styles.infoRow}>
                     <Ionicons name="pricetag" size={16} color="#43e97b" />
@@ -176,34 +217,39 @@ export function QRGenerator({ visible, product, onClose }: QRGeneratorProps) {
                 </View>
               </View>
 
-              {/* Size Controls */}
               <View style={styles.sizeControls}>
                 <Text style={styles.sizeLabel}>Tamaño del QR:</Text>
                 <View style={styles.sizeButtons}>
                   <TouchableOpacity
                     style={[styles.sizeButton, qrSize === 150 && styles.sizeButtonActive]}
                     onPress={() => setQrSize(150)}
+                    disabled={isCapturing}
                   >
                     <Text style={styles.sizeButtonText}>Pequeño</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.sizeButton, qrSize === 200 && styles.sizeButtonActive]}
                     onPress={() => setQrSize(200)}
+                    disabled={isCapturing}
                   >
                     <Text style={styles.sizeButtonText}>Mediano</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.sizeButton, qrSize === 250 && styles.sizeButtonActive]}
                     onPress={() => setQrSize(250)}
+                    disabled={isCapturing}
                   >
                     <Text style={styles.sizeButtonText}>Grande</Text>
                   </TouchableOpacity>
                 </View>
               </View>
 
-              {/* Action Buttons */}
               <View style={styles.actionButtonsRow1}>
-                <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
+                <TouchableOpacity 
+                  style={[styles.actionButton, isCapturing && styles.buttonDisabled]} 
+                  onPress={handleShare}
+                  disabled={isCapturing}
+                >
                   <LinearGradient
                     colors={['#4facfe', '#00f2fe']}
                     start={{ x: 0, y: 0 }}
@@ -215,7 +261,11 @@ export function QRGenerator({ visible, product, onClose }: QRGeneratorProps) {
                   </LinearGradient>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.actionButton} onPress={handleDownload}>
+                <TouchableOpacity 
+                  style={[styles.actionButton, isCapturing && styles.buttonDisabled]} 
+                  onPress={handleDownload}
+                  disabled={isCapturing}
+                >
                   <LinearGradient
                     colors={['#43e97b', '#38f9d7']}
                     start={{ x: 0, y: 0 }}
@@ -228,7 +278,11 @@ export function QRGenerator({ visible, product, onClose }: QRGeneratorProps) {
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity style={styles.actionButtonFull} onPress={handlePrint}>
+              <TouchableOpacity 
+                style={[styles.actionButtonFull, isCapturing && styles.buttonDisabled]} 
+                onPress={handlePrint}
+                disabled={isCapturing}
+              >
                 <LinearGradient
                   colors={['#f093fb', '#f5576c']}
                   start={{ x: 0, y: 0 }}
@@ -236,11 +290,12 @@ export function QRGenerator({ visible, product, onClose }: QRGeneratorProps) {
                   style={styles.actionButtonGradient}
                 >
                   <Ionicons name="print" size={20} color="#fff" />
-                  <Text style={styles.actionButtonText}>Imprimir QR Code</Text>
+                  <Text style={styles.actionButtonText}>
+                    {isCapturing ? 'Procesando...' : 'Imprimir QR Code'}
+                  </Text>
                 </LinearGradient>
               </TouchableOpacity>
 
-              {/* Instructions */}
               <View style={styles.instructions}>
                 <Ionicons name="information-circle" size={16} color="rgba(255,255,255,0.6)" />
                 <Text style={styles.instructionsText}>
@@ -386,11 +441,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 15,
-  },
   actionButtonsRow1: {
     flexDirection: 'row',
     gap: 12,
@@ -418,6 +468,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  buttonDisabled: {
+    opacity: 0.5,
   },
   instructions: {
     flexDirection: 'row',
