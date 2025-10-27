@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, StatusBar, ScrollView } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, ActivityIndicator, StatusBar, ScrollView, Linking } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -60,6 +60,24 @@ export default function AlertsScreen() {
     setSelectedAlertId(selectedAlertId === alertId ? null : alertId);
   };
 
+  const handleWhatsAppPress = async () => {
+    const phoneNumber = '15556345936';
+    const message = '1';
+    const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
+
+    try {
+      const canOpen = await Linking.canOpenURL(whatsappUrl);
+      if (canOpen) {
+        await Linking.openURL(whatsappUrl);
+      } else {
+        alertHelpers.error(showAlert, 'Error', 'No se puede abrir WhatsApp en este dispositivo.');
+      }
+    } catch (error) {
+      console.error('Error opening WhatsApp:', error);
+      alertHelpers.error(showAlert, 'Error', 'Ocurrió un error al abrir WhatsApp.');
+    }
+  };
+
   const getSeverityColor = (severity: number) => {
     if (severity === 3) return '#ff5858'; // High
     if (severity === 2) return '#ffae42'; // Medium
@@ -94,9 +112,12 @@ export default function AlertsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back-outline" size={28} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.title}>Resumen y Alertas</Text>
+        <Text style={styles.title}>Resumen</Text>
         {user?.role === 'admin' && (
           <View style={styles.adminButtons}>
+            <TouchableOpacity onPress={handleWhatsAppPress} style={styles.headerButton}>
+              <Ionicons name="logo-whatsapp" size={24} color="#25D366" />
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push('/analytics')} style={styles.headerButton}>
               <Ionicons name="stats-chart-outline" size={24} color="#fff" />
             </TouchableOpacity>

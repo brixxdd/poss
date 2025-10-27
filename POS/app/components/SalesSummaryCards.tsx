@@ -5,8 +5,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BACKEND_URL } from '../constants/config';
 import { Ionicons } from '@expo/vector-icons';
 
+interface SalesSummary {
+  totalToday: number;
+  avgDaily: number;
+  trend: 'up' | 'down' | 'stable';
+  trendPercentage: number;
+}
+
 export default function SalesSummaryCards() {
-  const [summary, setSummary] = useState<{ totalToday: number; avgDaily: number } | null>(null);
+  const [summary, setSummary] = useState<SalesSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchSummary = useCallback(async () => {
@@ -14,13 +21,15 @@ export default function SalesSummaryCards() {
     try {
       const token = await AsyncStorage.getItem('userToken');
       const headers = { Authorization: `Bearer ${token}` };
-      
+
       const totalTodayRes = await axios.get(`${BACKEND_URL}/api/analytics/total-sales-today`, { headers });
       const avgDailyRes = await axios.get(`${BACKEND_URL}/api/analytics/avg-daily-sales`, { headers });
 
       setSummary({
         totalToday: totalTodayRes.data.total_sales || 0,
         avgDaily: avgDailyRes.data.average_daily_sales || 0,
+        trend: avgDailyRes.data.trend || 'stable',
+        trendPercentage: avgDailyRes.data.trend_percentage || 0,
       });
     } catch (err) {
       console.error('Error fetching sales summary:', err);
@@ -33,9 +42,25 @@ export default function SalesSummaryCards() {
     fetchSummary();
   }, [fetchSummary]);
 
+  // Helper para obtener icono y color de tendencia
+  const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
+    switch (trend) {
+      case 'up':
+        return { name: 'trending-up' as const, color: '#32cd32' }; // Verde
+      case 'down':
+        return { name: 'trending-down' as const, color: '#ff5858' }; // Rojo
+      case 'stable':
+        return { name: 'remove-outline' as const, color: '#ffae42' }; // Amarillo
+      default:
+        return { name: 'remove-outline' as const, color: '#ffae42' };
+    }
+  };
+
   if (loading) {
     return <ActivityIndicator color="#fff" style={styles.loader} />;
   }
+
+  const trendIcon = getTrendIcon(summary?.trend || 'stable');
 
   return (
     <View style={styles.container}>
@@ -45,9 +70,17 @@ export default function SalesSummaryCards() {
         <Text style={styles.cardValue}>${summary?.totalToday.toFixed(2)}</Text>
       </View>
       <View style={styles.card}>
-        <Ionicons name="stats-chart-outline" size={28} color="#00f2fe" />
+        <View style={styles.cardHeader}>
+          <Ionicons name="stats-chart-outline" size={28} color="#00f2fe" />
+          <Ionicons name={trendIcon.name} size={22} color={trendIcon.color} style={styles.trendIcon} />
+        </View>
         <Text style={styles.cardTitle}>Promedio Diario (7d)</Text>
         <Text style={styles.cardValue}>${summary?.avgDaily.toFixed(2)}</Text>
+        {summary?.trend !== 'stable' && (
+          <Text style={[styles.trendText, { color: trendIcon.color }]}>
+            {summary?.trend === 'up' ? '↗' : '↘'} {Math.abs(summary?.trendPercentage || 0).toFixed(0)}%
+          </Text>
+        )}
       </View>
     </View>
   );
@@ -69,6 +102,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  trendIcon: {
+    marginLeft: 4,
+  },
   cardTitle: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
@@ -78,6 +119,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: '#fff',
+    marginTop: 4,
+  },
+  trendText: {
+    fontSize: 13,
+    fontWeight: '600',
     marginTop: 4,
   },
   loader: {
