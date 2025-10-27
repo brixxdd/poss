@@ -536,6 +536,7 @@ app.get('/api/sales/:id', authenticateToken, async (req, res) => {
 });
 
 const { runStockAlerts, getSalesPrediction, getTopProducts, evaluateSalesPredictions, getModelMetrics, getTotalSalesToday, getAvgDailySalesForRange } = require('./analytics');
+const { processWhatsAppAction, isWhatsAppNumberAuthorized } = require('./whatsappBot');
 const cron = require('node-cron');
 
 // ============================================
@@ -564,12 +565,13 @@ app.get('/api/analytics/sales-today', authenticateToken, async (req, res) => {
     }
 });
 
-// Ruta para obtener el promedio de ventas diarias en un rango
+// Ruta para obtener el promedio de ventas diarias en un rango CON TENDENCIA
 app.get('/api/analytics/avg-daily-sales', authenticateToken, async (req, res) => {
     const range = parseInt(req.query.range || '7', 10); // Default to 7 days
     try {
-        const avgSales = await getAvgDailySalesForRange(pool, range);
-        res.json({ average_daily_sales: avgSales }); // CORREGIDO: Nombre consistente con frontend
+        const result = await getAvgDailySalesForRange(pool, range);
+        // Retorna todo el objeto: { average_daily_sales, trend, trend_percentage }
+        res.json(result);
     } catch (error) {
         console.error('Error fetching average daily sales:', error);
         res.status(500).json({ message: 'Error fetching average daily sales', error: error.message });
@@ -601,10 +603,10 @@ app.post('/api/analytics/run-alerts', authenticateToken, authorizeAdmin, async (
     }
 });
 
-// Ruta para obtener las alertas de stock generadas
+// Ruta para obtener las alertas de stock generadas (solo activas)
 app.get('/api/analytics/alerts', authenticateToken, async (req, res) => {
     try {
-                const query = `
+        const query = `
             SELECT
                 sa.id,
                 sa.product_id,
@@ -616,6 +618,7 @@ app.get('/api/analytics/alerts', authenticateToken, async (req, res) => {
                 p.stock AS current_stock
             FROM stock_alerts sa
             JOIN products p ON sa.product_id = p.id
+            WHERE sa.resolved = false
             ORDER BY sa.severity DESC, sa.days_until_stockout ASC
         `;
         const result = await pool.query(query);
@@ -712,6 +715,102 @@ app.get('/api/analytics/model-metrics', authenticateToken, async (req, res) => {
     }
 });
 
+
+// ============================================
+// INTEGRACIÓN WHATSAPP VÍA N8N (CON PROTECCIÓN)
+// ============================================
+
+/**
+ * Ruta para procesar acciones desde N8N (WhatsApp Bot)
+ * SEGURIDAD:
+ * 1. Valida API Key en header X-API-Key
+ * 2. Valida que el número de WhatsApp esté en la whitelist (tabla whatsapp_admins)
+ */
+app.post('/api/whatsapp/action', async (req, res) => {
+    console.log('📱 WhatsApp Raw Body:', JSON.stringify(req.body, null, 2));
+
+    // ============================================
+    // PASO 1: Validar API Key
+    // ============================================
+    const apiKey = req.headers['x-api-key'];
+    const expectedApiKey = process.env.WHATSAPP_API_KEY;
+
+    if (!expectedApiKey) {
+        console.error('⚠️  Variable WHATSAPP_API_KEY no configurada en .env');
+        return res.status(500).json({
+            error: 'Server configuration error',
+            response: null
+        });
+    }
+
+    if (apiKey !== expectedApiKey) {
+        console.error('❌ API Key inválida o ausente');
+        return res.status(401).json({
+            error: 'Unauthorized: Invalid API Key',
+            response: null
+        });
+    }
+
+    console.log('✅ API Key válida');
+
+    // ============================================
+    // PASO 2: Extraer datos del body
+    // ============================================
+    let bodyData = req.body;
+
+    // N8N puede enviar el body como array o como objeto
+    if (Array.isArray(bodyData)) {
+        bodyData = bodyData[0];
+    }
+
+    const { action, user_id, message_text } = bodyData || {};
+
+    console.log('📱 WhatsApp Action Request:', { action, user_id, message_text });
+
+    if (!action) {
+        return res.status(400).json({
+            error: 'Missing required field: action',
+            received_body: req.body,
+            response: null
+        });
+    }
+
+    // ============================================
+    // PASO 3: Validar que el número esté autorizado
+    // ============================================
+    const isAuthorized = await isWhatsAppNumberAuthorized(pool, user_id);
+
+    if (!isAuthorized) {
+        console.error(`❌ Número NO autorizado: ${user_id}`);
+        return res.status(403).json({
+            action: action,
+            response: {
+                type: 'error',
+                message: 'Tu número no está autorizado para usar este servicio. Contacta al administrador.'
+            }
+        });
+    }
+
+    console.log(`✅ Número autorizado: ${user_id}`);
+
+    // ============================================
+    // PASO 4: Procesar la acción
+    // ============================================
+    try {
+        const result = await processWhatsAppAction(pool, action, user_id);
+        res.json(result);
+    } catch (error) {
+        console.error('❌ Error processing WhatsApp action:', error);
+        res.status(500).json({
+            action: action,
+            response: {
+                type: 'error',
+                message: 'Error interno del servidor.',
+                error: error.message
+            }
+        });
+    }
+});
 
 // ============================================
 // RUTAS ADICIONALES

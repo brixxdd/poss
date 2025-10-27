@@ -136,63 +136,246 @@ async function getAvgDailySales(pool, productId, days = 90) {
     return { avg, actualDays };
 }
 
-async function runStockAlerts(pool) {
-    const ALERT_DAYS_THRESHOLD = parseInt(process.env.ALERT_DAYS_THRESHOLD || '7', 10);
-    const AVG_SALES_WINDOW_DAYS = parseInt(process.env.AVG_SALES_WINDOW_DAYS || '90', 10);
+/**
+ * Obtiene métricas de ventas para TODOS los productos en una sola query
+ * OPTIMIZACIÓN: En lugar de hacer 3 queries por producto, hace 1 query total
+ *
+ * @param {Pool} pool - PostgreSQL pool
+ * @returns {Map} Map con productId -> { avg_7, avg_14, avg_30 }
+ */
+async function getAllProductsSalesMetrics(pool) {
+    const query = `
+        WITH sales_data AS (
+            SELECT
+                si.product_id,
+                s.sale_date,
+                SUM(si.quantity) as qty
+            FROM sale_items si
+            JOIN sales s ON s.id = si.sale_id
+            WHERE s.sale_date >= NOW() - INTERVAL '30 days'
+            GROUP BY si.product_id, s.sale_date
+        )
+        SELECT
+            p.id as product_id,
+            COALESCE(SUM(CASE WHEN sd.sale_date >= NOW() - INTERVAL '7 days' THEN sd.qty ELSE 0 END)::float / 7, 0) as avg_7,
+            COALESCE(SUM(CASE WHEN sd.sale_date >= NOW() - INTERVAL '14 days' THEN sd.qty ELSE 0 END)::float / 14, 0) as avg_14,
+            COALESCE(SUM(sd.qty)::float / 30, 0) as avg_30
+        FROM products p
+        LEFT JOIN sales_data sd ON sd.product_id = p.id
+        GROUP BY p.id
+    `;
 
+    const result = await pool.query(query);
+
+    // Convertir a Map para acceso O(1)
+    const metricsMap = new Map();
+    for (const row of result.rows) {
+        metricsMap.set(row.product_id, {
+            avg_7: parseFloat(row.avg_7),
+            avg_14: parseFloat(row.avg_14),
+            avg_30: parseFloat(row.avg_30)
+        });
+    }
+
+    return metricsMap;
+}
+
+/**
+ * Calcula el consumo diario estimado de manera inteligente
+ * Detecta tendencias comparando múltiples ventanas temporales
+ * Aplica boost conservador cuando detecta aumento de demanda
+ *
+ * VERSIÓN OPTIMIZADA: Recibe métricas pre-calculadas en lugar de hacer queries
+ *
+ * @param {Object} metrics - { avg_7, avg_14, avg_30 } pre-calculados
+ * @param {number} currentStock - Stock actual del producto
+ * @param {number} reorderThreshold - Umbral de reorden
+ * @returns {Object} { consumption, method, daysUntilStockout, metrics }
+ */
+function calculateSmartConsumption(metrics, currentStock, reorderThreshold) {
+    const { avg_7, avg_14, avg_30 } = metrics;
+
+    let consumption = 0;
+    let method = '';
+
+    // PASO 2: Detección de tendencia y selección de consumo estimado
+
+    // Caso 1: SIN DATOS (ninguna ventana tiene ventas)
+    if (avg_30 === 0 && avg_14 === 0 && avg_7 === 0) {
+        consumption = (reorderThreshold || 10) / 7;
+        method = 'Sin ventas históricas (estimación por umbral)';
+    }
+    // Caso 2: TENDENCIA AL ALZA FUERTE (≥30% aumento)
+    else if (avg_30 > 0 && (avg_7 / avg_30) >= 1.3) {
+        consumption = avg_7 * 1.2; // Boost del 20% por seguridad
+        method = `Tendencia al alza fuerte (+${Math.round((avg_7/avg_30 - 1) * 100)}%, boost 20%)`;
+    }
+    // Caso 3: TENDENCIA AL ALZA MODERADA (10-30% aumento)
+    else if (avg_30 > 0 && (avg_7 / avg_30) >= 1.1) {
+        consumption = avg_7;
+        method = `Tendencia al alza moderada (+${Math.round((avg_7/avg_30 - 1) * 100)}%)`;
+    }
+    // Caso 4: TENDENCIA A LA BAJA (≤30% reducción)
+    else if (avg_30 > 0 && (avg_7 / avg_30) <= 0.7) {
+        consumption = avg_14; // Usa promedio intermedio para evitar falsas alarmas
+        method = `Tendencia a la baja (-${Math.round((1 - avg_7/avg_30) * 100)}%, usando promedio 14 días)`;
+    }
+    // Caso 5: PRODUCTO NUEVO (sin datos de 30 días pero sí recientes)
+    else if (avg_30 === 0 && (avg_14 > 0 || avg_7 > 0)) {
+        consumption = avg_14 > 0 ? avg_14 : avg_7;
+        method = `Producto nuevo (usando promedio ${avg_14 > 0 ? '14' : '7'} días)`;
+    }
+    // Caso 6: ESTABLE (variación <10%)
+    else {
+        consumption = avg_30; // Usa promedio de mediano plazo
+        method = 'Estable (usando promedio 30 días)';
+    }
+
+    // PASO 3: Calcular días hasta agotamiento
+    const daysUntilStockout = consumption > 0
+        ? Math.floor(currentStock / consumption)
+        : Infinity;
+
+    return {
+        consumption: parseFloat(consumption.toFixed(2)),
+        method,
+        daysUntilStockout,
+        metrics: {
+            avg_7: parseFloat(avg_7.toFixed(2)),
+            avg_14: parseFloat(avg_14.toFixed(2)),
+            avg_30: parseFloat(avg_30.toFixed(2))
+        }
+    };
+}
+
+async function runStockAlerts(pool) {
+    const startTime = Date.now(); // Medir tiempo total
+    const ALERT_DAYS_THRESHOLD = parseInt(process.env.ALERT_DAYS_THRESHOLD || '7', 10);
+
+    console.log('⏱️  Iniciando runStockAlerts()...');
+
+    // PASO 1: Marcar alertas antiguas como resueltas
+    const step1Start = Date.now();
+    console.log('🔄 Marcando alertas antiguas como resueltas...');
+    const resolveOldAlertsQuery = `
+        UPDATE stock_alerts
+        SET resolved = true
+        WHERE resolved = false
+    `;
+    const resolveResult = await pool.query(resolveOldAlertsQuery);
+    console.log(`✅ ${resolveResult.rowCount} alertas marcadas como resueltas (${Date.now() - step1Start}ms)`);
+
+    // PASO 2: Obtener productos
+    const step2Start = Date.now();
     const productsResult = await pool.query('SELECT id, name, stock, reorder_threshold FROM products');
     const products = productsResult.rows;
+    console.log(`📦 ${products.length} productos obtenidos (${Date.now() - step2Start}ms)`);
+
+    // PASO 3: OPTIMIZACIÓN - Obtener TODAS las métricas de ventas en UNA SOLA query
+    const step3Start = Date.now();
+    console.log('🚀 Obteniendo métricas de ventas (query optimizada)...');
+    const metricsMap = await getAllProductsSalesMetrics(pool);
+    console.log(`✅ Métricas calculadas para ${metricsMap.size} productos (${Date.now() - step3Start}ms)\n`);
+
+    console.log(`📊 Umbral de alerta: ${ALERT_DAYS_THRESHOLD} días\n`);
 
     let alertsCreated = 0;
-    for (const product of products) {
-        const { avg: avgDailySales } = await getAvgDailySales(pool, product.id, AVG_SALES_WINDOW_DAYS);
-        const currentStock = product.stock;
-        const reorderThreshold = product.reorder_threshold;
+    let productsEvaluated = 0;
+    const alertsToInsert = []; // Batch de alertas para insertar
 
-        let daysUntilStockout = Infinity;
-        if (avgDailySales > 0) {
-            daysUntilStockout = Math.floor(currentStock / avgDailySales);
-        }
+    // PASO 4: Evaluar cada producto (ya no hace queries, solo cálculos)
+    for (const product of products) {
+        productsEvaluated++;
+        const currentStock = product.stock;
+        const reorderThreshold = product.reorder_threshold || 0;
+
+        // Obtener métricas pre-calculadas (O(1) lookup)
+        const metrics = metricsMap.get(product.id) || { avg_7: 0, avg_14: 0, avg_30: 0 };
+
+        // OPTIMIZADO: Ya no hace queries, solo cálculos en memoria
+        const smartAnalysis = calculateSmartConsumption(
+            metrics,
+            currentStock,
+            reorderThreshold
+        );
+
+        const { consumption, method, daysUntilStockout, metrics: returnedMetrics } = smartAnalysis;
 
         let severity = 0;
         let alertType = null;
         let predictedOutDate = null;
 
+        // Log de debug mejorado para cada producto
+        const shouldAlert = (currentStock <= reorderThreshold) || (daysUntilStockout <= ALERT_DAYS_THRESHOLD);
+        console.log(`${shouldAlert ? '⚠️ ' : '✅'} ${product.name}:`);
+        console.log(`   Stock: ${currentStock} | Umbral reorden: ${reorderThreshold}`);
+        console.log(`   Ventas promedio: 7d=${returnedMetrics.avg_7} | 14d=${returnedMetrics.avg_14} | 30d=${returnedMetrics.avg_30} u/día`);
+        console.log(`   Método: ${method}`);
+        console.log(`   Consumo estimado: ${consumption} u/día`);
+        console.log(`   Días hasta agotamiento: ${daysUntilStockout === Infinity ? '∞' : daysUntilStockout}`);
+
         if (currentStock <= reorderThreshold) {
             alertType = 'low_stock';
-            severity = 3; // High severity for immediate low stock
+            severity = 3;
+            console.log(`   🔴 Genera alerta: LOW_STOCK (stock <= umbral)`);
         } else if (daysUntilStockout <= ALERT_DAYS_THRESHOLD) {
             alertType = 'will_stockout';
             severity = daysUntilStockout <= 1 ? 3 : (daysUntilStockout <= 3 ? 2 : 1);
             predictedOutDate = new Date();
             predictedOutDate.setDate(predictedOutDate.getDate() + daysUntilStockout);
+            console.log(`   🟠 Genera alerta: WILL_STOCKOUT (días <= ${ALERT_DAYS_THRESHOLD})`);
+        } else {
+            console.log(`   ⏭️  Sin alerta (stock OK)`);
         }
 
+        // OPTIMIZACIÓN: Acumular alertas para batch insert
         if (alertType) {
-            // Check if an identical alert already exists and is not resolved
-            const existingAlertQuery = `
-                SELECT id FROM stock_alerts
-                WHERE product_id = $1 AND alert_type = $2 AND severity = $3 AND resolved = FALSE
-                AND (predicted_out_date IS NOT DISTINCT FROM $4)
-                AND (days_until_stockout IS NOT DISTINCT FROM $5)
-            `;
-            const existingAlertResult = await pool.query(existingAlertQuery, [
-                product.id, alertType, severity, predictedOutDate, daysUntilStockout
-            ]);
-
-            if (existingAlertResult.rows.length === 0) {
-                const insertAlertQuery = `
-                    INSERT INTO stock_alerts (product_id, alert_type, severity, predicted_out_date, days_until_stockout)
-                    VALUES ($1, $2, $3, $4, $5)
-                `;
-                await pool.query(insertAlertQuery, [
-                    product.id, alertType, severity, predictedOutDate, daysUntilStockout
-                ]);
-                alertsCreated++;
-            }
+            alertsToInsert.push({
+                product_id: product.id,
+                alert_type: alertType,
+                severity: severity,
+                predicted_out_date: predictedOutDate,
+                days_until_stockout: daysUntilStockout
+            });
         }
+        console.log(''); // Línea en blanco para separar productos
     }
-    return { status: 'ok', alerts_created: alertsCreated };
+
+    // PASO 5: OPTIMIZACIÓN - Batch insert de todas las alertas en una sola query
+    if (alertsToInsert.length > 0) {
+        const step5Start = Date.now();
+        console.log(`\n🚀 Insertando ${alertsToInsert.length} alertas (batch insert)...`);
+
+        // Construir query con múltiples VALUES
+        const values = [];
+        const placeholders = [];
+        let paramIndex = 1;
+
+        for (const alert of alertsToInsert) {
+            placeholders.push(`($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4})`);
+            values.push(alert.product_id, alert.alert_type, alert.severity, alert.predicted_out_date, alert.days_until_stockout);
+            paramIndex += 5;
+        }
+
+        const batchInsertQuery = `
+            INSERT INTO stock_alerts (product_id, alert_type, severity, predicted_out_date, days_until_stockout)
+            VALUES ${placeholders.join(', ')}
+        `;
+
+        await pool.query(batchInsertQuery, values);
+        alertsCreated = alertsToInsert.length;
+        console.log(`✅ ${alertsCreated} alertas insertadas (${Date.now() - step5Start}ms)`);
+    }
+
+    const totalTime = Date.now() - startTime;
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`📊 RESUMEN:`);
+    console.log(`   Productos evaluados: ${productsEvaluated}`);
+    console.log(`   Alertas generadas: ${alertsCreated}`);
+    console.log(`   ⏱️  Tiempo total: ${totalTime}ms`);
+    console.log(`${'='.repeat(60)}\n`);
+
+    return { status: 'ok', alerts_created: alertsCreated, products_evaluated: productsEvaluated, execution_time_ms: totalTime };
 }
 
 async function getBestModelForProduct(pool, productId) {
@@ -595,27 +778,81 @@ async function getTotalSalesToday(pool) {
 }
 
 /**
- * Calcula el promedio de ventas diarias en un rango de días
- * CORRECCIÓN DEFINITIVA: Convierte timestamps a zona horaria local
+ * Calcula el promedio de ventas diarias en un rango de días CON TENDENCIA
+ * MEJORA: Ahora calcula la tendencia (subiendo, bajando, estable)
+ * Compara primeros 3 días vs últimos 3 días para determinar dirección
  */
 async function getAvgDailySalesForRange(pool, rangeDays = 7) {
     // Obtener fecha actual en zona horaria local
     const today = new Date().toISOString().split('T')[0];
 
+    // Query mejorado: obtiene ventas diarias individuales para calcular tendencia
     const query = `
-        SELECT COALESCE(AVG(daily_total), 0)::float AS average_daily_sales
-        FROM (
-            SELECT
-                DATE(sale_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City') AS sale_day,
-                SUM(total_amount)::float AS daily_total
-            FROM sales
-            WHERE DATE(sale_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City') >= $1::date - INTERVAL '${rangeDays} days'
-                AND DATE(sale_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City') <= $1::date
-            GROUP BY DATE(sale_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City')
-        ) AS daily_sales;
+        SELECT
+            DATE(sale_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City') AS sale_day,
+            COALESCE(SUM(total_amount), 0)::float AS daily_total
+        FROM sales
+        WHERE DATE(sale_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City') >= $1::date - INTERVAL '${rangeDays} days'
+            AND DATE(sale_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City') <= $1::date
+        GROUP BY DATE(sale_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City')
+        ORDER BY sale_day ASC;
     `;
+
     const result = await pool.query(query, [today]);
-    return result.rows[0]?.average_daily_sales || 0;
+    const dailySales = result.rows;
+
+    // Si no hay datos, retornar valores por defecto
+    if (dailySales.length === 0) {
+        return {
+            average_daily_sales: 0,
+            trend: 'stable',
+            trend_percentage: 0
+        };
+    }
+
+    // Calcular promedio total
+    const totalSales = dailySales.reduce((sum, day) => sum + day.daily_total, 0);
+    const averageDailySales = totalSales / dailySales.length;
+
+    // Calcular tendencia: comparar primeros 3 días vs últimos 3 días
+    let trend = 'stable';
+    let trendPercentage = 0;
+
+    if (dailySales.length >= 6) {
+        // Tomar primeros 3 días
+        const firstHalf = dailySales.slice(0, 3);
+        const firstHalfAvg = firstHalf.reduce((sum, day) => sum + day.daily_total, 0) / firstHalf.length;
+
+        // Tomar últimos 3 días
+        const secondHalf = dailySales.slice(-3);
+        const secondHalfAvg = secondHalf.reduce((sum, day) => sum + day.daily_total, 0) / secondHalf.length;
+
+        // Calcular porcentaje de cambio
+        if (firstHalfAvg > 0) {
+            trendPercentage = ((secondHalfAvg - firstHalfAvg) / firstHalfAvg) * 100;
+
+            // Determinar tendencia (umbral de ±10%)
+            if (trendPercentage > 10) {
+                trend = 'up';
+            } else if (trendPercentage < -10) {
+                trend = 'down';
+            } else {
+                trend = 'stable';
+            }
+        } else if (secondHalfAvg > 0) {
+            // Si la primera mitad es 0 pero la segunda tiene ventas, es tendencia al alza
+            trend = 'up';
+            trendPercentage = 100;
+        }
+    }
+
+    console.log(`📊 Promedio diario: $${averageDailySales.toFixed(2)}, Tendencia: ${trend} (${trendPercentage.toFixed(1)}%)`);
+
+    return {
+        average_daily_sales: averageDailySales,
+        trend: trend,
+        trend_percentage: parseFloat(trendPercentage.toFixed(1))
+    };
 }
 
 async function evaluateSalesPredictions(pool) {
@@ -744,6 +981,8 @@ async function getModelMetrics(pool) {
 
 module.exports = {
     runStockAlerts,
+    calculateSmartConsumption,
+    getAllProductsSalesMetrics,
     getSalesPrediction,
     getSalesHistoryForPrediction,
     getTopProducts,

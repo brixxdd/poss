@@ -23,8 +23,8 @@ export default function AnalyticsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
-        <MetricsDashboard />
         <TopProductsList />
+        <MetricsDashboard />
       </ScrollView>
     </View>
   );

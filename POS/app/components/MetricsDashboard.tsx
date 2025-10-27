@@ -13,6 +13,17 @@ interface Metric {
   evaluated_at: string;
 }
 
+// Helper para interpretar MAE y retornar calidad con semáforo
+const getMetricQuality = (mae: number) => {
+  if (mae < 2) {
+    return { emoji: '🟢', label: 'Excelente', color: '#32cd32', description: 'Predicción muy precisa' };
+  } else if (mae >= 2 && mae <= 5) {
+    return { emoji: '🟡', label: 'Bueno', color: '#ffae42', description: 'Predicción confiable' };
+  } else {
+    return { emoji: '🔴', label: 'Regular', color: '#ff5858', description: 'Predicción menos precisa' };
+  }
+};
+
 export default function MetricsDashboard() {
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,26 +78,34 @@ export default function MetricsDashboard() {
     );
   }
 
-  const renderMetricItem = ({ item }: { item: Metric }) => (
-    <View style={styles.itemContainer}>
+  const renderMetricItem = ({ item }: { item: Metric }) => {
+    const quality = getMetricQuality(item.mae);
+
+    return (
+      <View style={styles.itemContainer}>
         <View style={styles.itemHeader}>
-            <Ionicons name="analytics-outline" size={20} color="#fff" />
-            <Text style={styles.itemName}>{item.product_name}</Text>
+          <Ionicons name="analytics-outline" size={20} color="#fff" />
+          <Text style={styles.itemName}>{item.product_name}</Text>
         </View>
-        <Text style={styles.itemModel}>Modelo: {item.model_version}</Text>
-        <View style={styles.metricsRow}>
-            <View style={styles.metricBox}>
-                <Text style={styles.metricLabel}>MAE</Text>
-                <Text style={styles.metricValue}>{item.mae.toFixed(2)}</Text>
-            </View>
-            <View style={styles.metricBox}>
-                <Text style={styles.metricLabel}>RMSE</Text>
-                <Text style={styles.metricValue}>{item.rmse.toFixed(2)}</Text>
-            </View>
+
+        {/* Semáforo de Calidad */}
+        <View style={styles.qualityContainer}>
+          <Text style={styles.qualityEmoji}>{quality.emoji}</Text>
+          <View style={styles.qualityTextContainer}>
+            <Text style={[styles.qualityLabel, { color: quality.color }]}>{quality.label}</Text>
+            <Text style={styles.qualityDescription}>{quality.description}</Text>
+          </View>
         </View>
-        <Text style={styles.itemDate}>Evaluado el: {new Date(item.evaluated_at).toLocaleDateString()}</Text>
-    </View>
-  );
+
+        {/* Métricas Técnicas (compactas) */}
+        <View style={styles.technicalMetrics}>
+          <Text style={styles.modelVersion}>{item.model_version}</Text>
+        </View>
+
+        <Text style={styles.itemDate}>Evaluado: {new Date(item.evaluated_at).toLocaleDateString()}</Text>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -143,7 +162,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.25)',
     borderRadius: 15,
     padding: 15,
-    width: 280, // Fixed width for horizontal items
+    width: 280,
     marginRight: 15,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
@@ -151,46 +170,58 @@ const styles = StyleSheet.create({
   itemHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   itemName: {
     fontSize: 17,
     fontWeight: 'bold',
     color: '#fff',
     marginLeft: 8,
+    flex: 1,
   },
-  itemModel: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-    fontStyle: 'italic',
-    marginBottom: 12,
-  },
-  metricsRow: {
+  qualityContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 12,
-  },
-  metricBox: {
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.3)',
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 10,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
   },
-  metricLabel: {
-    fontSize: 13,
+  qualityEmoji: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  qualityTextContainer: {
+    flex: 1,
+  },
+  qualityLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  qualityDescription: {
+    fontSize: 12,
     color: 'rgba(255,255,255,0.7)',
+  },
+  technicalMetrics: {
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+  },
+  technicalText: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
     marginBottom: 4,
   },
-  metricValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
+  modelVersion: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.6)',
+    fontStyle: 'italic',
   },
   itemDate: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.6)',
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.5)',
     textAlign: 'center',
-    marginTop: 5,
   },
 });

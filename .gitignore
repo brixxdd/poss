@@ -4,3 +4,4 @@ node_modules/
 docs_irr/
 ml-service/
 .geminiignore
+.vscode/
