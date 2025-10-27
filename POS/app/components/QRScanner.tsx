@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Modal,
   Dimensions,
-  Alert,
   Animated,
   ScrollView,
 } from 'react-native';
@@ -14,6 +13,7 @@ import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
+import { CustomAlert } from '../CustomAlert';
 
 const { width, height } = Dimensions.get('window');
 
@@ -41,6 +41,8 @@ export function QRScanner({ visible, onClose, onProductScanned }: QRScannerProps
   const [showProductModal, setShowProductModal] = useState(false);
   const [showSuccessFeedback, setShowSuccessFeedback] = useState(false);
   const [lastAddedProduct, setLastAddedProduct] = useState<string>('');
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertData, setAlertData] = useState({ title: '', message: '', type: 'error' as 'info' | 'success' | 'warning' | 'error', buttons: [{ text: 'OK' }] });
   
   // Animaciones
   const scanLineAnim = useState(new Animated.Value(0))[0];
@@ -168,11 +170,13 @@ export function QRScanner({ visible, onClose, onProductScanned }: QRScannerProps
           setScanned(false);
         }, 1000);
       } else {
-        Alert.alert('QR Inválido', 'Este código QR no contiene información de producto válida');
+        setAlertData({ title: 'QR Inválido', message: 'Este código QR no contiene información de producto válida', type: 'warning', buttons: [{ text: 'OK' }] });
+        setAlertVisible(true);
         setScanned(false);
       }
     } catch (error) {
-      Alert.alert('Error', 'No se pudo leer el código QR. Asegúrate de que sea un código de producto válido.');
+      setAlertData({ title: 'Error', message: 'No se pudo leer el código QR. Asegúrate de que sea un código de producto válido.', type: 'error', buttons: [{ text: 'OK' }] });
+      setAlertVisible(true);
       setScanned(false);
     }
   };
@@ -492,6 +496,16 @@ export function QRScanner({ visible, onClose, onProductScanned }: QRScannerProps
             </View>
           </Animated.View>
         )}
+
+        {/* Custom Alert */}
+        <CustomAlert
+          visible={alertVisible}
+          title={alertData.title}
+          message={alertData.message}
+          type={alertData.type}
+          buttons={alertData.buttons}
+          onDismiss={() => setAlertVisible(false)}
+        />
       </View>
     </Modal>
   );

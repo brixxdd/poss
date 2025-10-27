@@ -4,6 +4,7 @@ const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -14,6 +15,9 @@ app.use(express.json());
 
 // Habilitar CORS
 app.use(cors());
+
+// Serve static files from the 'public/images' directory
+app.use('/images', express.static(path.join(__dirname, 'public', 'images')));
 
 // Middleware para loguear TODAS las peticiones
 app.use((req, res, next) => {

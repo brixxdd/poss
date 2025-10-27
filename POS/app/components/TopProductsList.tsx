@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, FlatList, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, FlatList } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BACKEND_URL } from '../constants/config';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { CustomAlert } from '../CustomAlert';
 
 interface TopProduct {
   product_id: string;
@@ -21,6 +22,8 @@ export default function TopProductsList({ rangeDays = 30, limit = 5 }: TopProduc
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertData, setAlertData] = useState({ title: '', message: '', type: 'error' as 'info' | 'success' | 'warning' | 'error', buttons: [{ text: 'OK' }] });
 
   const fetchTopProducts = useCallback(async () => {
     setLoading(true);
@@ -33,7 +36,8 @@ export default function TopProductsList({ rangeDays = 30, limit = 5 }: TopProduc
       setTopProducts(response.data);
     } catch (err: any) {
       console.error('Error al obtener productos principales:', err.response?.data || err.message);
-      Alert.alert('Error', 'Fallo al obtener productos principales.');
+      setAlertData({ title: 'Error', message: 'Fallo al obtener productos principales.', type: 'error', buttons: [{ text: 'OK' }] });
+      setAlertVisible(true);
     } finally {
       setLoading(false);
     }
@@ -89,6 +93,15 @@ export default function TopProductsList({ rangeDays = 30, limit = 5 }: TopProduc
         keyExtractor={(item) => item.product_id}
         scrollEnabled={false} // Disable scrolling for a fixed list
         contentContainerStyle={styles.listContent}
+      />
+      
+      <CustomAlert
+        visible={alertVisible}
+        title={alertData.title}
+        message={alertData.message}
+        type={alertData.type}
+        buttons={alertData.buttons}
+        onDismiss={() => setAlertVisible(false)}
       />
     </View>
   );

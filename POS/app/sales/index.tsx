@@ -23,6 +23,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useAlert, alertHelpers } from '../components/AlertProvider';
 import { QRScanner } from '../components/QRScanner';
+import { NetworkStatus } from '../components/NetworkStatus';
+import { initOfflineStorage } from '../utils/offlineStorage';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -70,6 +72,7 @@ export default function SalesScreen() {
   useEffect(() => {
     fetchProducts();
     startAnimations();
+    initOfflineStorage();
   }, []);
 
   useEffect(() => {
@@ -806,6 +809,9 @@ export default function SalesScreen() {
         onClose={() => setShowQRScanner(false)}
         onProductScanned={handleProductScanned}
       />
+
+      {/* Network Status Banner */}
+      <NetworkStatus />
     </View>
   );
 }

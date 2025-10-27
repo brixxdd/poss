@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, FlatList, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, FlatList } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BACKEND_URL } from '../constants/config';
 import { Ionicons } from '@expo/vector-icons';
+import { CustomAlert } from '../CustomAlert';
 
 interface Metric {
   product_name: string;
@@ -17,6 +18,8 @@ export default function MetricsDashboard() {
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertData, setAlertData] = useState({ title: '', message: '', type: 'error' as 'info' | 'success' | 'warning' | 'error', buttons: [{ text: 'OK' }] });
 
   const fetchMetrics = useCallback(async () => {
     setLoading(true);
@@ -30,7 +33,8 @@ export default function MetricsDashboard() {
     } catch (err: any) {
       console.error('Error fetching metrics:', err.response?.data || err.message);
       setError('No se pudieron cargar las métricas del modelo.');
-      Alert.alert('Error', 'No se pudieron cargar las métricas del modelo.');
+      setAlertData({ title: 'Error', message: 'No se pudieron cargar las métricas del modelo.', type: 'error', buttons: [{ text: 'OK' }] });
+      setAlertVisible(true);
     } finally {
       setLoading(false);
     }
@@ -98,6 +102,15 @@ export default function MetricsDashboard() {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
+      />
+      
+      <CustomAlert
+        visible={alertVisible}
+        title={alertData.title}
+        message={alertData.message}
+        type={alertData.type}
+        buttons={alertData.buttons}
+        onDismiss={() => setAlertVisible(false)}
       />
     </View>
   );
