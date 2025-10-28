@@ -263,7 +263,7 @@ export default function RegisterScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: '#0f0c29' }]}>
       <StatusBar barStyle="light-content" />
       
       {/* Fondo con gradiente */}
@@ -539,6 +539,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#0f0c29',
   },
   keyboardView: {
     flex: 1,

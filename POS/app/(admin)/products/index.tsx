@@ -589,7 +589,7 @@ export default function ManageProductScreen() {
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: '#0f0c29' }]}>
         <StatusBar barStyle="light-content" />
         
         {/* Fondo oscuro elegante */}

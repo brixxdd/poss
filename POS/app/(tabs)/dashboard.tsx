@@ -147,7 +147,7 @@ export default function DashboardScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: '#0f0c29' }]}>
       {/* Background Gradient */}
       <LinearGradient
         colors={['#0f0c29', '#302b63', '#24243e']}
@@ -333,6 +333,7 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#0f0c29',
   },
   loadingContainer: {
     flex: 1,

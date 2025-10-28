@@ -344,7 +344,7 @@ export default function AdminIndex() {
   });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: '#0f0c29' }]}>
       <StatusBar barStyle="light-content" />
 
       {/* Fondo con gradiente oscuro elegante */}

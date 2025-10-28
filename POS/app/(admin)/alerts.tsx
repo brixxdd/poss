@@ -141,7 +141,7 @@ export default function AlertsScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: '#0f0c29' }]}>
       <StatusBar barStyle="light-content" />
       <LinearGradient colors={['#667eea', '#764ba2']} style={StyleSheet.absoluteFillObject} />
       
@@ -246,7 +246,10 @@ export default function AlertsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#0f0c29' 
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

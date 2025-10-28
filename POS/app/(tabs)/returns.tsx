@@ -372,7 +372,10 @@ export default function ReturnsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#0f0c29' 
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

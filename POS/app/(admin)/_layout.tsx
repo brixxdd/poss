@@ -49,7 +49,11 @@ export default function AdminLayout() {
   return (
     <Stack
       screenOptions={{
-        headerShown: false, // Ocultar headers por defecto
+        headerShown: false,
+        animation: 'none', // Sin animación = Sin destello
+        contentStyle: {
+          backgroundColor: '#0f0c29', // Fondo oscuro consistente
+        },
       }}
     />
   );

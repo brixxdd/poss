@@ -6,17 +6,54 @@ export default function RootLayout() {
     <AlertProvider>
       <Stack
         screenOptions={{
-          headerShown: false, // Desactivar headers en toda la app
+          headerShown: false,
+          animation: 'none', // Sin animación = Sin destello
+          contentStyle: {
+            backgroundColor: '#0f0c29', // Fondo oscuro consistente
+          },
         }}
       >
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="register" options={{ headerShown: false }} />
-        <Stack.Screen name="(admin)" options={{ headerShown: false }} />
+        <Stack.Screen 
+          name="login" 
+          options={{ 
+            headerShown: false,
+            animation: 'none',
+          }} 
+        />
+        <Stack.Screen 
+          name="register" 
+          options={{ 
+            headerShown: false,
+            animation: 'none',
+          }} 
+        />
+        <Stack.Screen 
+          name="(admin)" 
+          options={{ 
+            headerShown: false,
+            animation: 'none',
+          }} 
+        />
         <Stack.Screen 
           name="(tabs)" 
           options={{ 
             headerShown: false,
-            gestureEnabled: false, // Desactiva el gesto de deslizar hacia atrás
+            gestureEnabled: false,
+            animation: 'none',
+          }} 
+        />
+        <Stack.Screen 
+          name="sales" 
+          options={{ 
+            headerShown: false,
+            animation: 'none',
+          }} 
+        />
+        <Stack.Screen 
+          name="inventory" 
+          options={{ 
+            headerShown: false,
+            animation: 'none',
           }} 
         />
       </Stack>
