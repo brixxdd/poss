@@ -303,7 +303,7 @@ export default function ReturnsScreen() {
       <Animated.View 
         style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
       >
-        <TouchableOpacity onPress={() => router.push('/')} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <View style={styles.backButtonInner}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </View>

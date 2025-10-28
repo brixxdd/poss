@@ -9,6 +9,8 @@ import {
   Dimensions,
   StatusBar,
   Platform,
+  BackHandler,
+  Alert,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,7 +26,7 @@ const menuItems = [
   {
     title: 'Nueva Venta',
     icon: 'cart-outline',
-    route: '/sales', // Redirect to sales screen
+    route: '/sales',
     gradient: ['#4facfe', '#00f2fe'],
     shadowColor: '#4facfe',
   },
@@ -45,7 +47,7 @@ const menuItems = [
   {
     title: 'Reportes',
     icon: 'document-text-outline',
-    route: '/reports',
+    route: '/(tabs)/reports',
     gradient: ['#f093fb', '#f5576c'],
     shadowColor: '#f093fb',
   },
@@ -77,6 +79,27 @@ export default function SalesScreen() {
       }
     };
     fetchUser();
+
+    // Prevenir regreso al login con botón de atrás del sistema
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // Salir de la app directamente sin regresar al login
+      Alert.alert(
+        'Salir',
+        '¿Deseas salir de la aplicación?',
+        [
+          {
+            text: 'No',
+            onPress: () => null,
+            style: 'cancel',
+          },
+          {
+            text: 'Sí',
+            onPress: () => BackHandler.exitApp(),
+          },
+        ]
+      );
+      return true; // Bloquea el comportamiento por defecto (no permite regresar)
+    });
 
     // Animación de entrada
     Animated.parallel([
@@ -167,7 +190,10 @@ export default function SalesScreen() {
       setCurrentTime(new Date());
     }, 60000);
 
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      backHandler.remove(); // Limpiar el event listener
+    };
   }, []);
 
   const handleLogout = () => {

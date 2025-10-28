@@ -162,20 +162,32 @@ export default function DashboardScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-                 <Animated.View
-           style={[
-             styles.header,
-             {
-               opacity: fadeAnim,
-               transform: [{ translateY: slideAnim }],
-             },
-           ]}
-         >
-           <View style={styles.headerCenter}>
-             <Text style={styles.title}>Dashboard</Text>
-             <Text style={styles.subtitle}>Métricas en Tiempo Real</Text>
-           </View>
-         </Animated.View>
+        <Animated.View
+          style={[
+            styles.header,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          <TouchableOpacity 
+            onPress={() => router.back()} 
+            style={styles.backButton}
+            activeOpacity={0.8}
+          >
+            <View style={styles.backButtonInner}>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </View>
+          </TouchableOpacity>
+          
+          <View style={styles.headerCenter}>
+            <Text style={styles.title}>Dashboard</Text>
+            <Text style={styles.subtitle}>Métricas en Tiempo Real</Text>
+          </View>
+          
+          <View style={styles.backButton} />
+        </Animated.View>
 
         {/* Stats Grid */}
         <View style={styles.statsGrid}>
@@ -342,10 +354,24 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 20,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+  },
+  backButtonInner: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   headerCenter: {
     alignItems: 'center',

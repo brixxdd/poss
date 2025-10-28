@@ -12,6 +12,7 @@ import {
   Dimensions,
   StatusBar,
   ScrollView,
+  BackHandler,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -59,6 +60,12 @@ export default function RegisterScreen() {
   const particle4 = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    // Manejar botón de atrás del sistema para regresar al login
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      router.back();
+      return true;
+    });
+
     // Animación de entrada con efecto cascada
     Animated.stagger(200, [
       Animated.parallel([
@@ -127,6 +134,10 @@ export default function RegisterScreen() {
     animateParticle(particle2, 3500, 500);
     animateParticle(particle3, 4500, 1000);
     animateParticle(particle4, 3000, 1500);
+
+    return () => {
+      backHandler.remove(); // Limpiar el event listener
+    };
   }, []);
 
   const handleRegister = async () => {

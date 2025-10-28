@@ -11,6 +11,8 @@ import {
   Platform,
   Dimensions,
   StatusBar,
+  BackHandler,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -44,6 +46,28 @@ export default function LoginScreen() {
   const particle3 = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    // Prevenir regreso con botón de atrás del sistema en login
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+      // Salir de la app directamente desde el login
+      Alert.alert(
+        'Salir',
+        '¿Deseas salir de la aplicación?',
+        [
+          {
+            text: 'Cancelar',
+            onPress: () => null,
+            style: 'cancel',
+          },
+          {
+            text: 'Salir',
+            onPress: () => BackHandler.exitApp(),
+          },
+        ],
+        { cancelable: true }
+      );
+      return true;
+    });
+
     // Animación de entrada
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -112,6 +136,10 @@ export default function LoginScreen() {
     floatParticle(particle1, 0);
     floatParticle(particle2, 1000);
     floatParticle(particle3, 2000);
+
+    return () => {
+      backHandler.remove(); // Limpiar el event listener
+    };
   }, []);
 
   const shakeAnimation = () => {
