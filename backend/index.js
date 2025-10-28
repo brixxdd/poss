@@ -923,7 +923,6 @@ app.get('/api/users', authenticateToken, authorizeAdmin, async (req, res) => {
             SELECT 
                 id,
                 username,
-                email,
                 role,
                 status,
                 created_at,
@@ -960,7 +959,7 @@ app.get('/api/users/:id', authenticateToken, authorizeAdmin, async (req, res) =>
 app.put('/api/users/:id', authenticateToken, authorizeAdmin, async (req, res) => {
     try {
         const { id } = req.params;
-        const { status, role, email } = req.body;
+        const { status, role } = req.body;
         
         let query = 'UPDATE users SET ';
         let values = [];
@@ -976,13 +975,6 @@ app.put('/api/users/:id', authenticateToken, authorizeAdmin, async (req, res) =>
             if (values.length > 0) query += ', ';
             query += `role = $${paramCount}`;
             values.push(role);
-            paramCount++;
-        }
-        
-        if (email !== undefined) {
-            if (values.length > 0) query += ', ';
-            query += `email = $${paramCount}`;
-            values.push(email);
             paramCount++;
         }
         

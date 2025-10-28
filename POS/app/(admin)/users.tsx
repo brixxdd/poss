@@ -27,7 +27,6 @@ const { width } = Dimensions.get('window');
 interface User {
   id: string;
   username: string;
-  email: string;
   role: 'admin' | 'employee' | 'manager';
   status: 'active' | 'inactive';
   created_at: string;
@@ -150,8 +149,7 @@ export default function ManageUsersScreen() {
     if (searchQuery) {
       filtered = filtered.filter(
         (user) =>
-          user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          user.email.toLowerCase().includes(searchQuery.toLowerCase())
+          user.username.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
 
@@ -384,7 +382,6 @@ export default function ManageUsersScreen() {
                   </View>
                 )}
               </View>
-              <Text style={styles.userEmail}>{item.email}</Text>
 
               {/* Role Badge */}
               <View style={styles.roleBadge}>
@@ -596,7 +593,7 @@ export default function ManageUsersScreen() {
               <Ionicons name="search" size={20} color="rgba(255,255,255,0.8)" />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Buscar por nombre o email..."
+                placeholder="Buscar por nombre de usuario..."
                 placeholderTextColor="rgba(255,255,255,0.5)"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
