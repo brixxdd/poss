@@ -1,0 +1,22 @@
+# ========================================
+# AGREGAR ESTAS LÍNEAS A TU .gitignore
+# ========================================
+
+# Android build files
+android/
+!android/gradle.properties.example
+
+# Android Keystore (¡MUY IMPORTANTE! - No subir a git)
+*.keystore
+*.jks
+android/app/*.keystore
+android/app/*.jks
+android/gradle.properties
+
+# APK y AAB compilados
+*.apk
+*.aab
+
+# Configuración local
+local.properties
+
