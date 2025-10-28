@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 interface SalesSummary {
   totalToday: number;
   avgDaily: number;
-  trend: 'up' | 'down' | 'stable';
+  trend: 'up' | 'down' | 'stable' | 'insufficient_data';
   trendPercentage: number;
 }
 
@@ -20,7 +20,10 @@ export default function SalesSummaryCards() {
     setLoading(true);
     try {
       const token = await AsyncStorage.getItem('userToken');
-      const headers = { Authorization: `Bearer ${token}` };
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        'ngrok-skip-browser-warning': 'true'  // Bypass ngrok warning (safe for production)
+      };
 
       const totalTodayRes = await axios.get(`${BACKEND_URL}/api/analytics/total-sales-today`, { headers });
       const avgDailyRes = await axios.get(`${BACKEND_URL}/api/analytics/avg-daily-sales`, { headers });
@@ -28,7 +31,7 @@ export default function SalesSummaryCards() {
       setSummary({
         totalToday: totalTodayRes.data.total_sales || 0,
         avgDaily: avgDailyRes.data.average_daily_sales || 0,
-        trend: avgDailyRes.data.trend || 'stable',
+        trend: avgDailyRes.data.trend || 'insufficient_data',
         trendPercentage: avgDailyRes.data.trend_percentage || 0,
       });
     } catch (err) {
@@ -43,7 +46,7 @@ export default function SalesSummaryCards() {
   }, [fetchSummary]);
 
   // Helper para obtener icono y color de tendencia
-  const getTrendIcon = (trend: 'up' | 'down' | 'stable') => {
+  const getTrendIcon = (trend: 'up' | 'down' | 'stable' | 'insufficient_data') => {
     switch (trend) {
       case 'up':
         return { name: 'trending-up' as const, color: '#32cd32' }; // Verde
@@ -51,8 +54,10 @@ export default function SalesSummaryCards() {
         return { name: 'trending-down' as const, color: '#ff5858' }; // Rojo
       case 'stable':
         return { name: 'remove-outline' as const, color: '#ffae42' }; // Amarillo
+      case 'insufficient_data':
+        return null; // No mostrar icono cuando no hay datos suficientes
       default:
-        return { name: 'remove-outline' as const, color: '#ffae42' };
+        return null;
     }
   };
 
@@ -60,7 +65,7 @@ export default function SalesSummaryCards() {
     return <ActivityIndicator color="#fff" style={styles.loader} />;
   }
 
-  const trendIcon = getTrendIcon(summary?.trend || 'stable');
+  const trendIcon = getTrendIcon(summary?.trend || 'insufficient_data');
 
   return (
     <View style={styles.container}>
@@ -72,12 +77,14 @@ export default function SalesSummaryCards() {
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Ionicons name="stats-chart-outline" size={28} color="#00f2fe" />
-          <Ionicons name={trendIcon.name} size={22} color={trendIcon.color} style={styles.trendIcon} />
+          {trendIcon && (
+            <Ionicons name={trendIcon.name} size={22} color={trendIcon.color} style={styles.trendIcon} />
+          )}
         </View>
         <Text style={styles.cardTitle}>Promedio Diario (7d)</Text>
         <Text style={styles.cardValue}>${summary?.avgDaily.toFixed(2)}</Text>
-        {summary?.trend !== 'stable' && (
-          <Text style={[styles.trendText, { color: trendIcon.color }]}>
+        {summary?.trend !== 'stable' && summary?.trend !== 'insufficient_data' && (
+          <Text style={[styles.trendText, { color: trendIcon?.color }]}>
             {summary?.trend === 'up' ? '↗' : '↘'} {Math.abs(summary?.trendPercentage || 0).toFixed(0)}%
           </Text>
         )}

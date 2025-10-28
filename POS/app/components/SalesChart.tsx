@@ -31,13 +31,17 @@ export default function SalesChart({ productId }: { productId: string }) {
 
       // Fetch historical sales data
       const historyResponse = await axios.get(`${BACKEND_URL}/api/analytics/sales-history/${productId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`,
+        'ngrok-skip-browser-warning': 'true'
+      },
       });
       const historicalSales = historyResponse.data;
 
       // Fetch sales predictions
       const predictionResponse = await axios.get(`${BACKEND_URL}/api/analytics/sales-prediction/${productId}?horizon=7`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`,
+        'ngrok-skip-browser-warning': 'true'
+      },
       });
       const predictions = predictionResponse.data.predicted_daily;
 

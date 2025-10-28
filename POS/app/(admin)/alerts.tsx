@@ -30,12 +30,34 @@ export default function AlertsScreen() {
       if (userData) setUser(JSON.parse(userData));
 
       const alertsResponse = await axios.get(`${BACKEND_URL}/api/analytics/alerts`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'ngrok-skip-browser-warning': 'true'  // Bypass ngrok warning (safe to keep for production)
+        },
       });
-      setAlerts(alertsResponse.data);
+
+      // Validar que la respuesta sea un array
+      if (!Array.isArray(alertsResponse.data)) {
+        console.error('Backend did not return an array');
+        alertHelpers.error(showAlert, 'Error', 'El backend retornó datos en formato incorrecto.');
+        setAlerts([]);
+        return;
+      }
+
+      // Filtrar elementos undefined/null y validar que tengan id
+      const validAlerts = alertsResponse.data.filter((alert: any) => alert && alert.id);
+      setAlerts(validAlerts);
     } catch (error: any) {
-      console.error('Error fetching data:', error.response?.data || error.message);
-      alertHelpers.error(showAlert, 'Error', 'No se pudieron cargar los datos.');
+      console.error('Error fetching alerts:', error.response?.data || error.message);
+
+      // Manejo específico de errores de autenticación
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        alertHelpers.error(showAlert, 'Error de autenticación', 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+      } else {
+        alertHelpers.error(showAlert, 'Error', 'No se pudieron cargar los datos.');
+      }
+
+      setAlerts([]);
     } finally {
       setLoading(false);
     }
@@ -47,7 +69,12 @@ export default function AlertsScreen() {
     setIsRefreshing(true);
     try {
       const token = await AsyncStorage.getItem('userToken');
-      await axios.post(`${BACKEND_URL}/api/analytics/run-alerts`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.post(`${BACKEND_URL}/api/analytics/run-alerts`, {}, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'ngrok-skip-browser-warning': 'true'
+        }
+      });
       await fetchData();
       alertHelpers.success(showAlert, 'Éxito', 'Las alertas han sido recalculadas.');
     } catch (error: any) {
@@ -65,7 +92,12 @@ export default function AlertsScreen() {
       await axios.post(
         `${BACKEND_URL}/api/analytics/manual-run-stock-alerts`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'ngrok-skip-browser-warning': 'true'
+          }
+        }
       );
       alertHelpers.success(showAlert, 'Éxito', 'Alertas de stock calculadas correctamente');
       await fetchData();
@@ -83,7 +115,12 @@ export default function AlertsScreen() {
       await axios.post(
         `${BACKEND_URL}/api/analytics/manual-evaluate-predictions`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'ngrok-skip-browser-warning': 'true'
+          }
+        }
       );
       alertHelpers.success(showAlert, 'Éxito', 'Predicciones evaluadas correctamente');
     } catch (error: any) {
@@ -121,24 +158,29 @@ export default function AlertsScreen() {
     return '#32cd32'; // Low
   };
 
-  const renderAlertItem = ({ item }: { item: any }) => (
-    <View style={styles.alertItemWrapper}>
-      <TouchableOpacity activeOpacity={0.8} onPress={() => handleItemPress(item.id)}>
-        <BlurView intensity={40} tint="light" style={styles.itemContainer}>
-          <View style={[styles.severityIndicator, { backgroundColor: getSeverityColor(item.severity) }]} />
-          <View style={styles.itemInfo}>
-            <Text style={styles.itemName}>{item.product_name}</Text>
-            <Text style={styles.itemDetail}>Stock Actual: {item.current_stock}</Text>
-            <Text style={styles.itemDetail}>
-              Agotamiento est. en <Text style={{ fontWeight: 'bold' }}>{item.days_until_stockout} días</Text>
-            </Text>
-          </View>
-          <Ionicons name="warning-outline" size={30} color={getSeverityColor(item.severity)} />
-        </BlurView>
-      </TouchableOpacity>
-      {selectedAlertId === item.id && <SalesChart productId={item.product_id} />}
-    </View>
-  );
+  const renderAlertItem = ({ item }: { item: any }) => {
+    // Validación defensiva: si item es inválido, no renderizar nada
+    if (!item || !item.id) return null;
+
+    return (
+      <View style={styles.alertItemWrapper}>
+        <TouchableOpacity activeOpacity={0.8} onPress={() => handleItemPress(item.id)}>
+          <BlurView intensity={40} tint="light" style={styles.itemContainer}>
+            <View style={[styles.severityIndicator, { backgroundColor: getSeverityColor(item.severity) }]} />
+            <View style={styles.itemInfo}>
+              <Text style={styles.itemName}>{item.product_name || 'Producto desconocido'}</Text>
+              <Text style={styles.itemDetail}>Stock Actual: {item.current_stock ?? 'N/A'}</Text>
+              <Text style={styles.itemDetail}>
+                Agotamiento est. en <Text style={{ fontWeight: 'bold' }}>{item.days_until_stockout ?? 'N/A'} días</Text>
+              </Text>
+            </View>
+            <Ionicons name="warning-outline" size={30} color={getSeverityColor(item.severity)} />
+          </BlurView>
+        </TouchableOpacity>
+        {selectedAlertId === item.id && <SalesChart productId={item.product_id} />}
+      </View>
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: '#0f0c29' }]}>
@@ -235,7 +277,7 @@ export default function AlertsScreen() {
             <FlatList
               data={alerts}
               renderItem={renderAlertItem}
-              keyExtractor={(item) => item.id.toString()}
+              keyExtractor={(item, index) => item?.id?.toString() || `alert-${index}`}
               scrollEnabled={false}
             />
           )}

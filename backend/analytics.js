@@ -765,16 +765,19 @@ async function getTopProducts(pool, rangeDays = 30, limit = 10) {
  * Usa fecha del servidor Node.js (zona horaria local) en lugar de CURRENT_DATE de PostgreSQL
  */
 async function getTotalSalesToday(pool) {
-    // Obtener fecha actual en zona horaria local del servidor Node.js
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
+    // FIX: Aplicar zona horaria 'America/Mexico_City' tanto a sale_date como a CURRENT_DATE
     const query = `
         SELECT COALESCE(SUM(total_amount), 0)::float AS total_sales
         FROM sales
-        WHERE DATE(sale_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City') = $1::date;
+        WHERE DATE(sale_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City')
+            = (CURRENT_DATE AT TIME ZONE 'America/Mexico_City');
     `;
-    const result = await pool.query(query, [today]);
-    return result.rows[0]?.total_sales || 0;
+    const result = await pool.query(query);
+    const totalSales = result.rows[0]?.total_sales || 0;
+
+    console.log(`💰 Ventas de hoy: $${totalSales.toFixed(2)}`);
+
+    return totalSales;
 }
 
 /**
@@ -783,39 +786,46 @@ async function getTotalSalesToday(pool) {
  * Compara primeros 3 días vs últimos 3 días para determinar dirección
  */
 async function getAvgDailySalesForRange(pool, rangeDays = 7) {
-    // Obtener fecha actual en zona horaria local
-    const today = new Date().toISOString().split('T')[0];
-
-    // Query mejorado: obtiene ventas diarias individuales para calcular tendencia
+    // FIX: Aplicar zona horaria 'America/Mexico_City' a CURRENT_DATE en ambos lados del BETWEEN
     const query = `
         SELECT
             DATE(sale_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City') AS sale_day,
             COALESCE(SUM(total_amount), 0)::float AS daily_total
         FROM sales
-        WHERE DATE(sale_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City') >= $1::date - INTERVAL '${rangeDays} days'
-            AND DATE(sale_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City') <= $1::date
+        WHERE DATE(sale_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City')
+            BETWEEN (CURRENT_DATE AT TIME ZONE 'America/Mexico_City' - INTERVAL '${rangeDays} days')
+                AND (CURRENT_DATE AT TIME ZONE 'America/Mexico_City')
         GROUP BY DATE(sale_date AT TIME ZONE 'UTC' AT TIME ZONE 'America/Mexico_City')
         ORDER BY sale_day ASC;
     `;
 
-    const result = await pool.query(query, [today]);
+    const result = await pool.query(query);
     const dailySales = result.rows;
+
+    console.log(`📊 Consulta avg-daily-sales (${rangeDays} días):`);
+    console.log(`   Días con ventas encontrados: ${dailySales.length}`);
+    console.log(`   Datos:`, dailySales);
 
     // Si no hay datos, retornar valores por defecto
     if (dailySales.length === 0) {
+        console.log(`   ⚠️ No se encontraron ventas en los últimos ${rangeDays} días`);
         return {
             average_daily_sales: 0,
-            trend: 'stable',
+            trend: 'insufficient_data',  // Nuevo estado: datos insuficientes
             trend_percentage: 0
         };
     }
 
     // Calcular promedio total
     const totalSales = dailySales.reduce((sum, day) => sum + day.daily_total, 0);
-    const averageDailySales = totalSales / dailySales.length;
+
+    // FIX CRÍTICO: Dividir entre rangeDays (7 días) NO entre dailySales.length
+    // Esto asegura que días sin ventas también se cuentan en el promedio
+    const averageDailySales = totalSales / rangeDays;
 
     // Calcular tendencia: comparar primeros 3 días vs últimos 3 días
-    let trend = 'stable';
+    // Nuevo estado por defecto: 'insufficient_data' cuando no hay suficientes días para análisis
+    let trend = 'insufficient_data';
     let trendPercentage = 0;
 
     if (dailySales.length >= 6) {
@@ -961,6 +971,36 @@ async function evaluateSalesPredictions(pool) {
 
 // Helper functions removed - evaluateSalesPredictions now handles everything inline
 
+/**
+ * Obtiene métricas AGREGADAS por modelo (en lugar de por producto)
+ * Calcula el MAE promedio de todos los productos para cada modelo
+ * Retorna una vista resumida: 1 registro por modelo en lugar de N×modelos
+ *
+ * Perfecto para dashboards que necesitan vista general sin abrumar al usuario
+ */
+async function getAggregatedModelMetrics(pool) {
+    const query = `
+        SELECT
+            model_version,
+            ROUND(AVG(mae)::numeric, 2) AS avg_mae,
+            ROUND(AVG(rmse)::numeric, 2) AS avg_rmse,
+            COUNT(DISTINCT product_id) AS products_count,
+            MAX(evaluated_at) AS last_evaluated
+        FROM model_metrics
+        GROUP BY model_version
+        ORDER BY avg_mae ASC;
+    `;
+
+    const result = await pool.query(query);
+
+    console.log(`📊 Métricas agregadas por modelo:`);
+    result.rows.forEach(row => {
+        console.log(`   ${row.model_version}: MAE promedio ${row.avg_mae}, ${row.products_count} productos evaluados`);
+    });
+
+    return result.rows;
+}
+
 async function getModelMetrics(pool) {
     const query = `
         SELECT DISTINCT ON (product_id, model_version, horizon)
@@ -989,6 +1029,7 @@ module.exports = {
     getTotalSalesToday,
     getAvgDailySalesForRange,
     evaluateSalesPredictions,
-    getModelMetrics
+    getModelMetrics,
+    getAggregatedModelMetrics
 };
 
