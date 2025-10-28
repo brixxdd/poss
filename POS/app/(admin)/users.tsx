@@ -28,9 +28,7 @@ interface User {
   id: string;
   username: string;
   role: 'admin' | 'employee' | 'manager';
-  status: 'active' | 'inactive';
   created_at: string;
-  last_login?: string;
 }
 
 const ROLE_COLORS = {
@@ -51,7 +49,6 @@ export default function ManageUsersScreen() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRole, setSelectedRole] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const { showAlert } = useAlert();
@@ -86,7 +83,7 @@ export default function ManageUsersScreen() {
 
   useEffect(() => {
     filterUsers();
-  }, [users, searchQuery, selectedRole, selectedStatus]);
+  }, [users, searchQuery, selectedRole]);
 
   const startAnimations = () => {
     Animated.parallel([
@@ -158,11 +155,6 @@ export default function ManageUsersScreen() {
       filtered = filtered.filter((user) => user.role === selectedRole);
     }
 
-    // Filtro de estado
-    if (selectedStatus !== 'all') {
-      filtered = filtered.filter((user) => user.status === selectedStatus);
-    }
-
     setFilteredUsers(filtered);
   };
 
@@ -214,45 +206,14 @@ export default function ManageUsersScreen() {
     );
   };
 
-  const handleToggleStatus = async (user: User) => {
-    const newStatus = user.status === 'active' ? 'inactive' : 'active';
-    
-    try {
-      const token = await AsyncStorage.getItem('userToken');
-      await axios.put(`${BACKEND_URL}/api/users/${user.id}`, 
-        { status: newStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
-      setUsers((prevUsers) =>
-        prevUsers.map((u) =>
-          u.id === user.id ? { ...u, status: newStatus } : u
-        )
-      );
-      
-      alertHelpers.success(
-        showAlert,
-        'Estado Actualizado',
-        `${user.username} ahora está ${newStatus === 'active' ? 'activo' : 'inactivo'}.`
-      );
-    } catch (error: any) {
-      console.error('Error updating user status:', error);
-      alertHelpers.error(
-        showAlert,
-        'Error',
-        'No se pudo actualizar el estado del usuario. Intenta de nuevo.'
-      );
-    }
-  };
 
   const getStats = () => {
     const total = users.length;
-    const active = users.filter((u) => u.status === 'active').length;
     const admins = users.filter((u) => u.role === 'admin').length;
     const managers = users.filter((u) => u.role === 'manager').length;
     const employees = users.filter((u) => u.role === 'employee').length;
 
-    return { total, active, admins, managers, employees };
+    return { total, admins, managers, employees };
   };
 
   const renderStatCard = (
@@ -298,24 +259,17 @@ export default function ManageUsersScreen() {
   };
 
   const renderFilterPill = (
-    type: 'role' | 'status',
+    type: 'role',
     value: string,
     label: string
   ) => {
-    const isSelected =
-      type === 'role' ? selectedRole === value : selectedStatus === value;
+    const isSelected = selectedRole === value;
 
     return (
       <TouchableOpacity
         key={value}
         activeOpacity={0.8}
-        onPress={() => {
-          if (type === 'role') {
-            setSelectedRole(value);
-          } else {
-            setSelectedStatus(value);
-          }
-        }}
+        onPress={() => setSelectedRole(value)}
       >
         <Animated.View style={[styles.filterPill, { opacity: fadeAnim }]}>
           {isSelected ? (
@@ -376,11 +330,6 @@ export default function ManageUsersScreen() {
             <View style={styles.userInfo}>
               <View style={styles.userNameRow}>
                 <Text style={styles.userName}>{item.username}</Text>
-                {item.status === 'active' && (
-                  <View style={styles.activeIndicator}>
-                    <View style={styles.activeDot} />
-                  </View>
-                )}
               </View>
 
               {/* Role Badge */}
@@ -406,44 +355,10 @@ export default function ManageUsersScreen() {
                 </LinearGradient>
               </View>
 
-              {/* Last Login */}
-              {item.last_login && (
-                <View style={styles.lastLoginRow}>
-                  <Ionicons
-                    name="time-outline"
-                    size={12}
-                    color="rgba(255,255,255,0.5)"
-                  />
-                  <Text style={styles.lastLoginText}>
-                    Último acceso: {item.last_login}
-                  </Text>
-                </View>
-              )}
             </View>
 
             {/* Actions */}
             <View style={styles.userActions}>
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => handleToggleStatus(item)}
-                activeOpacity={0.7}
-              >
-                <LinearGradient
-                  colors={
-                    item.status === 'active'
-                      ? ['rgba(255,88,88,0.3)', 'rgba(255,88,88,0.2)']
-                      : ['rgba(67,233,123,0.3)', 'rgba(67,233,123,0.2)']
-                  }
-                  style={styles.actionButtonGradient}
-                >
-                  <Ionicons
-                    name={item.status === 'active' ? 'pause' : 'play'}
-                    size={18}
-                    color={item.status === 'active' ? '#ff5858' : '#43e97b'}
-                  />
-                </LinearGradient>
-              </TouchableOpacity>
-
               <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => handleEditUser(item)}
@@ -568,10 +483,10 @@ export default function ManageUsersScreen() {
             ['rgba(240,147,251,0.3)', 'rgba(245,87,108,0.2)']
           )}
           {renderStatCard(
-            'checkmark-circle',
-            'Activos',
-            stats.active,
-            ['rgba(67,233,123,0.3)', 'rgba(56,249,215,0.2)']
+            'briefcase',
+            'Gerentes',
+            stats.managers,
+            ['rgba(79,172,254,0.3)', 'rgba(0,242,254,0.2)']
           )}
           {renderStatCard(
             'shield-checkmark',
@@ -628,16 +543,6 @@ export default function ManageUsersScreen() {
             </ScrollView>
           </View>
 
-          <View style={styles.filterSection}>
-            <Text style={styles.filterLabel}>Estado:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={styles.filterPills}>
-                {renderFilterPill('status', 'all', 'Todos')}
-                {renderFilterPill('status', 'active', 'Activos')}
-                {renderFilterPill('status', 'inactive', 'Inactivos')}
-              </View>
-            </ScrollView>
-          </View>
         </Animated.View>
 
         {/* Users List */}

@@ -924,9 +924,7 @@ app.get('/api/users', authenticateToken, authorizeAdmin, async (req, res) => {
                 id,
                 username,
                 role,
-                status,
-                created_at,
-                last_login
+                created_at
             FROM users 
             ORDER BY created_at DESC
         `);
