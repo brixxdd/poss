@@ -53,6 +53,11 @@ if (process.env.DATABASE_URL) {
     poolOptions.password = process.env.DB_PASSWORD;
     poolOptions.port = process.env.DB_PORT;
     
+    // Configurar SSL para Neon
+    if (process.env.DB_SSL === 'true' || process.env.DB_HOST?.includes('neon.tech')) {
+        poolOptions.ssl = { rejectUnauthorized: false };
+    }
+    
     // Debug: Ver qué valores están llegando
     console.log('🔍 Database Config:', {
         user: poolOptions.user,
@@ -719,6 +724,56 @@ app.get('/api/analytics/model-metrics', authenticateToken, async (req, res) => {
     }
 });
 
+
+// ============================================
+// ENDPOINTS MANUALES PARA EJECUTAR TAREAS PROGRAMADAS
+// ============================================
+
+// Endpoint para ejecutar manualmente el cálculo de alertas de stock
+app.post('/api/analytics/manual-run-stock-alerts', authenticateToken, authorizeAdmin, async (req, res) => {
+    try {
+        console.log('==================================================');
+        console.log('⏰ MANUAL TRIGGER: runStockAlerts');
+        console.log('==================================================');
+        const result = await runStockAlerts(pool);
+        console.log('✅ Manual task runStockAlerts completed successfully.');
+        res.status(200).json({ 
+            success: true,
+            message: 'Stock alerts calculated successfully',
+            result 
+        });
+    } catch (error) {
+        console.error('❌ Error running manual task runStockAlerts:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Failed to run stock alert calculation.', 
+            error: error.message 
+        });
+    }
+});
+
+// Endpoint para ejecutar manualmente la evaluación de predicciones
+app.post('/api/analytics/manual-evaluate-predictions', authenticateToken, authorizeAdmin, async (req, res) => {
+    try {
+        console.log('==================================================');
+        console.log('⏰ MANUAL TRIGGER: evaluateSalesPredictions');
+        console.log('==================================================');
+        const result = await evaluateSalesPredictions(pool);
+        console.log('✅ Manual task evaluateSalesPredictions completed successfully.');
+        res.status(200).json({ 
+            success: true,
+            message: 'Sales predictions evaluated successfully',
+            result 
+        });
+    } catch (error) {
+        console.error('❌ Error running manual task evaluateSalesPredictions:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Failed to evaluate predictions.', 
+            error: error.message 
+        });
+    }
+});
 
 // ============================================
 // INTEGRACIÓN WHATSAPP VÍA N8N (CON PROTECCIÓN)

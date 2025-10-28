@@ -4,7 +4,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
-import { getPendingSyncsCount } from '../utils/offlineStorage';
+import { getPendingSyncsCount } from '../../lib/offlineStorage';
 
 export const NetworkStatus = () => {
   const { isConnected } = useNetworkStatus();

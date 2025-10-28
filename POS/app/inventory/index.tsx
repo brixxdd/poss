@@ -254,7 +254,7 @@ export default function InventoryScreen() {
               {/* Ícono del producto con gradiente */}
               <View style={styles.itemIconContainer}>
                 <LinearGradient
-                  colors={stockStatus.gradient}
+                  colors={stockStatus.gradient as any}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.itemIcon}
@@ -270,7 +270,7 @@ export default function InventoryScreen() {
                   ]}
                 >
                   <LinearGradient
-                    colors={stockStatus.gradient}
+                    colors={stockStatus.gradient as any}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.statusBadgeGradient}
@@ -305,7 +305,7 @@ export default function InventoryScreen() {
               {/* Stock info */}
               <View style={styles.stockContainer}>
                 <LinearGradient
-                  colors={[...stockStatus.gradient, 'rgba(255,255,255,0.1)']}
+                  colors={[...stockStatus.gradient, 'rgba(255,255,255,0.1)'] as any}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.stockGradient}
@@ -795,24 +795,24 @@ const styles = StyleSheet.create({
   },
   stockContainer: {
     marginLeft: 12,
-    borderRadius: 14,
+    borderRadius: 12,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
   stockGradient: {
-    width: 60,
-    paddingVertical: 10,
+    width: 50,
+    paddingVertical: 8,
     alignItems: 'center',
   },
   stockNumber: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#fff',
     marginBottom: 2,
   },
   stockLabel: {
-    fontSize: 10,
+    fontSize: 9,
     color: 'rgba(255,255,255,0.8)',
     fontWeight: '600',
   },

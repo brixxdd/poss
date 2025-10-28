@@ -24,7 +24,7 @@ import { BlurView } from 'expo-blur';
 import { useAlert, alertHelpers } from '../components/AlertProvider';
 import { QRScanner } from '../components/QRScanner';
 import { NetworkStatus } from '../components/NetworkStatus';
-import { initOfflineStorage } from '../utils/offlineStorage';
+import { initOfflineStorage } from '../../lib/offlineStorage';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);

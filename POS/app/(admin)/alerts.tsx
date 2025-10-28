@@ -18,6 +18,8 @@ export default function AlertsScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [user, setUser] = useState<{ role: string } | null>(null);
   const [selectedAlertId, setSelectedAlertId] = useState<number | null>(null);
+  const [runningStockAlerts, setRunningStockAlerts] = useState(false);
+  const [runningPredictions, setRunningPredictions] = useState(false);
   const router = useRouter();
 
   const fetchData = useCallback(async () => {
@@ -53,6 +55,41 @@ export default function AlertsScreen() {
       alertHelpers.error(showAlert, 'Error', 'No se pudo ejecutar el cálculo de alertas.');
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const handleRunStockAlerts = async () => {
+    setRunningStockAlerts(true);
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      await axios.post(
+        `${BACKEND_URL}/api/analytics/manual-run-stock-alerts`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alertHelpers.success(showAlert, 'Éxito', 'Alertas de stock calculadas correctamente');
+      await fetchData();
+    } catch (error: any) {
+      alertHelpers.error(showAlert, 'Error', error.response?.data?.message || 'Error al ejecutar alertas de stock');
+    } finally {
+      setRunningStockAlerts(false);
+    }
+  };
+
+  const handleRunPredictions = async () => {
+    setRunningPredictions(true);
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      await axios.post(
+        `${BACKEND_URL}/api/analytics/manual-evaluate-predictions`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alertHelpers.success(showAlert, 'Éxito', 'Predicciones evaluadas correctamente');
+    } catch (error: any) {
+      alertHelpers.error(showAlert, 'Error', error.response?.data?.message || 'Error al evaluar predicciones');
+    } finally {
+      setRunningPredictions(false);
     }
   };
 
@@ -133,6 +170,60 @@ export default function AlertsScreen() {
       ) : (
         <ScrollView contentContainerStyle={styles.scrollViewContent}>
           <SalesSummaryCards />
+          
+          {/* Sección de Tareas Programadas - Solo para Admin */}
+          {user?.role === 'admin' && (
+            <View style={styles.scheduledTasksSection}>
+              <Text style={styles.sectionSubtitle}>⚙️ Tareas Programadas</Text>
+              
+              {/* Botón para ejecutar alertas de stock */}
+              <TouchableOpacity
+                style={styles.taskButton}
+                onPress={handleRunStockAlerts}
+                disabled={runningStockAlerts}
+                activeOpacity={0.8}
+              >
+                <BlurView intensity={30} tint="light" style={styles.taskButtonBlur}>
+                  <View style={styles.taskButtonContent}>
+                    {runningStockAlerts ? (
+                      <ActivityIndicator size="small" color="#43e97b" />
+                    ) : (
+                      <Ionicons name="notifications-circle-outline" size={24} color="#43e97b" />
+                    )}
+                    <View style={styles.taskButtonTextContainer}>
+                      <Text style={styles.taskButtonTitle}>Calcular Alertas de Stock</Text>
+                      <Text style={styles.taskButtonSubtitle}>Ejecutar ahora</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="rgba(67,233,123,0.6)" />
+                  </View>
+                </BlurView>
+              </TouchableOpacity>
+
+              {/* Botón para evaluar predicciones */}
+              <TouchableOpacity
+                style={styles.taskButton}
+                onPress={handleRunPredictions}
+                disabled={runningPredictions}
+                activeOpacity={0.8}
+              >
+                <BlurView intensity={30} tint="light" style={styles.taskButtonBlur}>
+                  <View style={styles.taskButtonContent}>
+                    {runningPredictions ? (
+                      <ActivityIndicator size="small" color="#4facfe" />
+                    ) : (
+                      <Ionicons name="analytics-outline" size={24} color="#4facfe" />
+                    )}
+                    <View style={styles.taskButtonTextContainer}>
+                      <Text style={styles.taskButtonTitle}>Evaluar Predicciones</Text>
+                      <Text style={styles.taskButtonSubtitle}>Ejecutar ahora</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="rgba(79,172,254,0.6)" />
+                  </View>
+                </BlurView>
+              </TouchableOpacity>
+            </View>
+          )}
+          
           <Text style={styles.sectionTitle}>Alertas de Stock</Text>
           {alerts.length === 0 ? (
             <View style={styles.centeredMessage}>
@@ -238,5 +329,47 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.8)',
     marginTop: 4,
+  },
+  scheduledTasksSection: {
+    marginTop: 20,
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+  sectionSubtitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  taskButton: {
+    marginBottom: 12,
+  },
+  taskButtonBlur: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  taskButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  taskButtonTextContainer: {
+    flex: 1,
+  },
+  taskButtonTitle: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  taskButtonSubtitle: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
   },
 });

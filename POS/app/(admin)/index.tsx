@@ -287,7 +287,7 @@ export default function AdminIndex() {
         >
           <View style={styles.cardWrapper}>
             <LinearGradient
-              colors={item.gradient}
+              colors={item.gradient as any}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={[
