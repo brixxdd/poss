@@ -18,6 +18,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useAlert, alertHelpers } from '../components/AlertProvider';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BACKEND_URL } from '../constants/config';
 
 const { width } = Dimensions.get('window');
 
@@ -50,6 +53,7 @@ export default function ManageUsersScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRole, setSelectedRole] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const { showAlert } = useAlert();
 
@@ -113,69 +117,30 @@ export default function ManageUsersScreen() {
     ]).start();
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchUsers();
+    setRefreshing(false);
+  };
+
   const fetchUsers = async () => {
     setLoading(true);
-    // Simular API call con datos dummy mejorados
-    setTimeout(() => {
-      const dummyUsers: User[] = [
-        {
-          id: '1',
-          username: 'admin',
-          email: 'admin@empresa.com',
-          role: 'admin',
-          status: 'active',
-          created_at: '2024-01-15',
-          last_login: '2025-10-24',
-        },
-        {
-          id: '2',
-          username: 'juan_perez',
-          email: 'juan@empresa.com',
-          role: 'manager',
-          status: 'active',
-          created_at: '2024-02-20',
-          last_login: '2025-10-23',
-        },
-        {
-          id: '3',
-          username: 'maria_garcia',
-          email: 'maria@empresa.com',
-          role: 'employee',
-          status: 'active',
-          created_at: '2024-03-10',
-          last_login: '2025-10-24',
-        },
-        {
-          id: '4',
-          username: 'carlos_lopez',
-          email: 'carlos@empresa.com',
-          role: 'employee',
-          status: 'active',
-          created_at: '2024-04-05',
-          last_login: '2025-10-22',
-        },
-        {
-          id: '5',
-          username: 'ana_martinez',
-          email: 'ana@empresa.com',
-          role: 'employee',
-          status: 'inactive',
-          created_at: '2024-05-12',
-          last_login: '2025-09-15',
-        },
-        {
-          id: '6',
-          username: 'roberto_sanchez',
-          email: 'roberto@empresa.com',
-          role: 'manager',
-          status: 'active',
-          created_at: '2024-06-18',
-          last_login: '2025-10-24',
-        },
-      ];
-      setUsers(dummyUsers);
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      const response = await axios.get(`${BACKEND_URL}/api/users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUsers(response.data);
+    } catch (error: any) {
+      console.error('Error fetching users:', error);
+      alertHelpers.error(
+        showAlert,
+        'Error',
+        'No se pudieron cargar los usuarios. Verifica tu conexión.'
+      );
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   const filterUsers = () => {
@@ -230,25 +195,56 @@ export default function ManageUsersScreen() {
       showAlert,
       '¿Eliminar Usuario?',
       `¿Estás seguro de eliminar a ${user.username}? Esta acción no se puede deshacer.`,
-      () => {
-        setUsers((prevUsers) => prevUsers.filter((u) => u.id !== user.id));
-        alertHelpers.success(showAlert, 'Usuario Eliminado', `${user.username} fue eliminado correctamente.`);
+      async () => {
+        try {
+          const token = await AsyncStorage.getItem('userToken');
+          await axios.delete(`${BACKEND_URL}/api/users/${user.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          
+          setUsers((prevUsers) => prevUsers.filter((u) => u.id !== user.id));
+          alertHelpers.success(showAlert, 'Usuario Eliminado', `${user.username} fue eliminado correctamente.`);
+        } catch (error: any) {
+          console.error('Error deleting user:', error);
+          alertHelpers.error(
+            showAlert,
+            'Error',
+            'No se pudo eliminar el usuario. Intenta de nuevo.'
+          );
+        }
       }
     );
   };
 
-  const handleToggleStatus = (user: User) => {
+  const handleToggleStatus = async (user: User) => {
     const newStatus = user.status === 'active' ? 'inactive' : 'active';
-    setUsers((prevUsers) =>
-      prevUsers.map((u) =>
-        u.id === user.id ? { ...u, status: newStatus } : u
-      )
-    );
-    alertHelpers.success(
-      showAlert,
-      'Estado Actualizado',
-      `${user.username} ahora está ${newStatus === 'active' ? 'activo' : 'inactivo'}.`
-    );
+    
+    try {
+      const token = await AsyncStorage.getItem('userToken');
+      await axios.put(`${BACKEND_URL}/api/users/${user.id}`, 
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setUsers((prevUsers) =>
+        prevUsers.map((u) =>
+          u.id === user.id ? { ...u, status: newStatus } : u
+        )
+      );
+      
+      alertHelpers.success(
+        showAlert,
+        'Estado Actualizado',
+        `${user.username} ahora está ${newStatus === 'active' ? 'activo' : 'inactivo'}.`
+      );
+    } catch (error: any) {
+      console.error('Error updating user status:', error);
+      alertHelpers.error(
+        showAlert,
+        'Error',
+        'No se pudo actualizar el estado del usuario. Intenta de nuevo.'
+      );
+    }
   };
 
   const getStats = () => {
@@ -285,7 +281,7 @@ export default function ManageUsersScreen() {
       >
         <BlurView intensity={20} tint="dark" style={styles.statBlur}>
           <LinearGradient
-            colors={gradient}
+            colors={gradient as [string, string]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.statGradient}
@@ -369,7 +365,7 @@ export default function ManageUsersScreen() {
             {/* Avatar */}
             <View style={styles.userAvatar}>
               <LinearGradient
-                colors={ROLE_COLORS[item.role]}
+                colors={ROLE_COLORS[item.role] as [string, string]}
                 style={styles.avatarGradient}
               >
                 <Text style={styles.avatarText}>
@@ -393,7 +389,7 @@ export default function ManageUsersScreen() {
               {/* Role Badge */}
               <View style={styles.roleBadge}>
                 <LinearGradient
-                  colors={ROLE_COLORS[item.role]}
+                  colors={ROLE_COLORS[item.role] as [string, string]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.roleBadgeGradient}
@@ -536,14 +532,25 @@ export default function ManageUsersScreen() {
           <Text style={styles.subtitle}>{users.length} usuarios registrados</Text>
         </View>
 
-        <TouchableOpacity onPress={handleAddUser} style={styles.addHeaderButton}>
-          <LinearGradient
-            colors={['#43e97b', '#38f9d7']}
-            style={styles.addHeaderGradient}
-          >
-            <Ionicons name="add" size={24} color="#fff" />
-          </LinearGradient>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={handleRefresh} style={styles.refreshButton}>
+            <LinearGradient
+              colors={['#4facfe', '#00f2fe']}
+              style={styles.refreshGradient}
+            >
+              <Ionicons name="refresh" size={20} color="#fff" />
+            </LinearGradient>
+          </TouchableOpacity>
+          
+          <TouchableOpacity onPress={handleAddUser} style={styles.addHeaderButton}>
+            <LinearGradient
+              colors={['#43e97b', '#38f9d7']}
+              style={styles.addHeaderGradient}
+            >
+              <Ionicons name="add" size={24} color="#fff" />
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </Animated.View>
 
       <ScrollView
@@ -728,6 +735,23 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 2,
     borderColor: 'rgba(67,233,123,0.5)',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  refreshButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(79,172,254,0.5)',
+  },
+  refreshGradient: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   addHeaderGradient: {
     flex: 1,

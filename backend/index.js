@@ -914,6 +914,122 @@ app.get('/api/protected', authenticateToken, (req, res) => {
     res.json({ message: `Welcome ${req.user.username}! You have access to protected data.` });
 });
 
+// ==================== USERS ENDPOINTS ====================
+
+// Get all users (admin only)
+app.get('/api/users', authenticateToken, authorizeAdmin, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT 
+                id,
+                username,
+                email,
+                role,
+                status,
+                created_at,
+                last_login
+            FROM users 
+            ORDER BY created_at DESC
+        `);
+        
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({ message: 'Error fetching users' });
+    }
+});
+
+// Get user by ID (admin only)
+app.get('/api/users/:id', authenticateToken, authorizeAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        res.json(result.rows[0]);
+    } catch (error) {
+        console.error('Error fetching user:', error);
+        res.status(500).json({ message: 'Error fetching user' });
+    }
+});
+
+// Update user status (admin only)
+app.put('/api/users/:id', authenticateToken, authorizeAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status, role, email } = req.body;
+        
+        let query = 'UPDATE users SET ';
+        let values = [];
+        let paramCount = 1;
+        
+        if (status !== undefined) {
+            query += `status = $${paramCount}`;
+            values.push(status);
+            paramCount++;
+        }
+        
+        if (role !== undefined) {
+            if (values.length > 0) query += ', ';
+            query += `role = $${paramCount}`;
+            values.push(role);
+            paramCount++;
+        }
+        
+        if (email !== undefined) {
+            if (values.length > 0) query += ', ';
+            query += `email = $${paramCount}`;
+            values.push(email);
+            paramCount++;
+        }
+        
+        query += ` WHERE id = $${paramCount}`;
+        values.push(id);
+        
+        const result = await pool.query(query, values);
+        
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        res.json({ message: 'User updated successfully' });
+    } catch (error) {
+        console.error('Error updating user:', error);
+        res.status(500).json({ message: 'Error updating user' });
+    }
+});
+
+// Delete user (admin only)
+app.delete('/api/users/:id', authenticateToken, authorizeAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Check if user exists
+        const userResult = await pool.query('SELECT username FROM users WHERE id = $1', [id]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        // Don't allow deleting the last admin
+        const adminCount = await pool.query('SELECT COUNT(*) FROM users WHERE role = $1', ['admin']);
+        const userRole = await pool.query('SELECT role FROM users WHERE id = $1', [id]);
+        
+        if (userRole.rows[0].role === 'admin' && adminCount.rows[0].count <= 1) {
+            return res.status(400).json({ message: 'Cannot delete the last admin user' });
+        }
+        
+        await pool.query('DELETE FROM users WHERE id = $1', [id]);
+        
+        res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        res.status(500).json({ message: 'Error deleting user' });
+    }
+});
+
 app.get('/', (req, res) => {
     res.json({ 
         message: 'Backend POS API is running!',

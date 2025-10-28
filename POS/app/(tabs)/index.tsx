@@ -9,13 +9,13 @@ import {
   Dimensions,
   StatusBar,
   Platform,
-  Alert,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { CustomAlert } from '../CustomAlert';
 
 const { width, height } = Dimensions.get('window');
 const cardWidth = width * 0.42;
@@ -55,6 +55,7 @@ export default function SalesScreen() {
   const router = useRouter();
   const [user, setUser] = useState<{ username: string } | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [showLogoutAlert, setShowLogoutAlert] = useState(false);
 
   // Animaciones
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -170,41 +171,30 @@ export default function SalesScreen() {
   }, []);
 
   const handleLogout = () => {
-    Alert.alert(
-      'Cerrar Sesión',
-      '¿Estás seguro de que quieres cerrar sesión?',
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Cerrar Sesión',
-          style: 'destructive',
-          onPress: async () => {
-            // Animación de salida
-            Animated.parallel([
-              Animated.timing(fadeAnim, {
-                toValue: 0,
-                duration: 300,
-                useNativeDriver: true,
-              }),
-              ...cardAnims.map(anim =>
-                Animated.timing(anim.scale, {
-                  toValue: 0,
-                  duration: 300,
-                  useNativeDriver: true,
-                })
-              ),
-            ]).start(async () => {
-              await AsyncStorage.removeItem('userToken');
-              await AsyncStorage.removeItem('user');
-              router.replace('/login');
-            });
-          },
-        },
-      ]
-    );
+    setShowLogoutAlert(true);
+  };
+
+  const confirmLogout = async () => {
+    setShowLogoutAlert(false);
+    // Animación de salida
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      ...cardAnims.map(anim =>
+        Animated.timing(anim.scale, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        })
+      ),
+    ]).start(async () => {
+      await AsyncStorage.removeItem('userToken');
+      await AsyncStorage.removeItem('user');
+      router.replace('/login');
+    });
   };
 
   const getGreeting = () => {
@@ -280,7 +270,7 @@ export default function SalesScreen() {
         >
           <View style={styles.cardWrapper}>
             <LinearGradient
-              colors={item.gradient}
+              colors={item.gradient as [string, string]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={[
@@ -472,6 +462,27 @@ export default function SalesScreen() {
           </TouchableOpacity>
         </Animated.View>
       </ScrollView>
+
+      {/* Custom Alert para logout */}
+      <CustomAlert
+        visible={showLogoutAlert}
+        title="Cerrar Sesión"
+        message="¿Estás seguro de que quieres cerrar sesión?"
+        type="question"
+        buttons={[
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+            onPress: () => setShowLogoutAlert(false),
+          },
+          {
+            text: 'Cerrar Sesión',
+            style: 'destructive',
+            onPress: confirmLogout,
+          },
+        ]}
+        onDismiss={() => setShowLogoutAlert(false)}
+      />
     </View>
   );
 }

@@ -1070,7 +1070,7 @@ export default function ManageProductScreen() {
           </BlurView>
         </View>
       )}
-Alert.alert
+
       {/* Custom Alert */}
       <CustomAlert
         visible={alertVisible}
