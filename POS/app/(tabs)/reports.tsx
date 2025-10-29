@@ -116,7 +116,7 @@ export default function ReportsScreen() {
         >
           {/* Icon */}
           <View style={styles.cardIconContainer}>
-            <LinearGradient colors={report.gradient} style={styles.cardIcon}>
+            <LinearGradient colors={report.gradient as [string, string]} style={styles.cardIcon}>
               <Ionicons name={report.icon as any} size={28} color="#fff" />
             </LinearGradient>
           </View>
