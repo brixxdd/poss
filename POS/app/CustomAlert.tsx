@@ -60,7 +60,7 @@ const alertThemes = {
   },
 };
 
-export function CustomAlert({
+function CustomAlert({
   visible,
   title,
   message,
@@ -428,3 +428,5 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.9)',
   },
 });
+
+export default CustomAlert;
