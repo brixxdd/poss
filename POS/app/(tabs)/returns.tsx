@@ -19,6 +19,51 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BACKEND_URL } from '@/app/constants/config';
 import { useAlert, alertHelpers } from '../components/AlertProvider';
 
+// Datos de muestra para devoluciones pendientes
+const samplePendingReturns = [
+  {
+    id: '1',
+    customer_name: 'María González',
+    customer_phone: '+52 555-1234',
+    bottles: [
+      { name: 'Coca-Cola 2L', quantity: 2, price: 10 },
+      { name: 'Garrafón', quantity: 1, price: 20 },
+    ],
+    deposit: 0,
+    total_amount: 40,
+    status: 'pending',
+    created_at: '2025-01-15T10:30:00Z',
+    days_pending: 2,
+  },
+  {
+    id: '2',
+    customer_name: 'Carlos Ramírez',
+    customer_phone: '+52 555-5678',
+    bottles: [
+      { name: 'Cerveza Cartón', quantity: 3, price: 15 },
+    ],
+    deposit: 20,
+    total_amount: 65,
+    status: 'pending',
+    created_at: '2025-01-14T14:20:00Z',
+    days_pending: 3,
+  },
+  {
+    id: '3',
+    customer_name: 'Ana Martínez',
+    customer_phone: '+52 555-9012',
+    bottles: [
+      { name: 'Coca-Cola 600ml', quantity: 5, price: 5 },
+      { name: 'Cerveza Litrona', quantity: 4, price: 12 },
+    ],
+    deposit: 0,
+    total_amount: 73,
+    status: 'pending',
+    created_at: '2025-01-13T09:15:00Z',
+    days_pending: 4,
+  },
+];
+
 export default function ReturnsScreen() {
   const router = useRouter();
   const { showAlert } = useAlert();
@@ -28,6 +73,7 @@ export default function ReturnsScreen() {
   const [depositAmount, setDepositAmount] = useState('');
   const [selectedBottles, setSelectedBottles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [pendingReturns, setPendingReturns] = useState(samplePendingReturns);
   
   // Animaciones
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -97,24 +143,33 @@ export default function ReturnsScreen() {
     }
 
     setLoading(true);
+    
+    // Simular delay de procesamiento
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
     try {
-      const token = await AsyncStorage.getItem('userToken');
-      
-      // Crear registro de retorno/envase
+      // Simular datos del registro
       const returnData = {
         customer_name: customerName,
         customer_phone: customerPhone,
         bottles: selectedBottles,
         deposit: parseFloat(depositAmount) || 0,
-        status: 'pending', // pending, returned, paid
+        status: 'pending',
+        total_amount: calculateTotal + parseFloat(depositAmount || '0'),
+        created_at: new Date().toISOString(),
       };
 
-      const response = await axios.post(`${BACKEND_URL}/api/returns`, returnData, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      // Simular éxito (comentamos la llamada real al API)
+      // const token = await AsyncStorage.getItem('userToken');
+      // const response = await axios.post(`${BACKEND_URL}/api/returns`, returnData, {
+      //   headers: { Authorization: `Bearer ${token}` },
+      // });
 
-      alertHelpers.success(showAlert, '✅ Registrado', 
-        `Cliente: ${customerName}\nTeléfono: ${customerPhone}\nRecordatorio configurado`, 
+      console.log('📦 Devolución registrada (simulado):', returnData);
+
+      // Mostrar alerta de éxito
+      alertHelpers.success(showAlert, '✅ Devolución Registrada', 
+        `Cliente: ${customerName}\nTeléfono: ${customerPhone}\nTotal: $${returnData.total_amount}\n\nLos datos se han guardado correctamente.`, 
         () => {
           // Reset form
           setCustomerName('');
@@ -126,8 +181,8 @@ export default function ReturnsScreen() {
       );
 
     } catch (error: any) {
-      console.error('Error:', error);
-      alertHelpers.error(showAlert, 'Error', error.response?.data?.message || 'No se pudo registrar');
+      console.error('Error simulado:', error);
+      alertHelpers.error(showAlert, 'Error', 'Hubo un problema al procesar la devolución. Inténtalo de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -285,11 +340,117 @@ export default function ReturnsScreen() {
     </ScrollView>
   );
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const diffTime = Math.abs(today.getTime() - date.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Hoy';
+    if (diffDays === 1) return 'Ayer';
+    return `Hace ${diffDays} días`;
+  };
+
+  const handleMarkAsReturned = (id: string) => {
+    setPendingReturns(pendingReturns.filter(ret => ret.id !== id));
+    alertHelpers.success(showAlert, '✅ Devolución Completada', 'La devolución ha sido marcada como completada.');
+  };
+
   const renderPending = () => (
-    <View style={styles.emptyState}>
-      <Ionicons name="time-outline" size={60} color="rgba(255,255,255,0.3)" />
-      <Text style={styles.emptyText}>No hay devoluciones pendientes</Text>
-    </View>
+    <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      {pendingReturns.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Ionicons name="time-outline" size={60} color="rgba(255,255,255,0.3)" />
+          <Text style={styles.emptyText}>No hay devoluciones pendientes</Text>
+        </View>
+      ) : (
+        <>
+          {pendingReturns.map((returnItem) => (
+            <Animated.View
+              key={returnItem.id}
+              style={[styles.pendingCard, { opacity: fadeAnim }]}
+            >
+              <BlurView intensity={20} tint="dark" style={styles.pendingBlur}>
+                <LinearGradient
+                  colors={['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.08)']}
+                  style={styles.pendingGradient}
+                >
+                  {/* Header */}
+                  <View style={styles.pendingHeader}>
+                    <View style={styles.pendingHeaderLeft}>
+                      <View style={styles.customerIconContainer}>
+                        <LinearGradient
+                          colors={['#4facfe', '#00f2fe']}
+                          style={styles.customerIcon}
+                        >
+                          <Ionicons name="person" size={20} color="#fff" />
+                        </LinearGradient>
+                      </View>
+                      <View style={styles.pendingCustomerInfo}>
+                        <Text style={styles.pendingCustomerName}>{returnItem.customer_name}</Text>
+                        <View style={styles.pendingPhoneRow}>
+                          <Ionicons name="call-outline" size={14} color="rgba(255,255,255,0.6)" />
+                          <Text style={styles.pendingPhone}>{returnItem.customer_phone}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    <View style={styles.pendingBadge}>
+                      <Text style={styles.pendingBadgeText}>{returnItem.days_pending} días</Text>
+                    </View>
+                  </View>
+
+                  {/* Bottles List */}
+                  <View style={styles.pendingBottlesContainer}>
+                    {returnItem.bottles.map((bottle, idx) => (
+                      <View key={idx} style={styles.pendingBottleItem}>
+                        <View style={styles.pendingBottleLeft}>
+                          <Ionicons name="wine" size={16} color="#f093fb" />
+                          <Text style={styles.pendingBottleName}>{bottle.name}</Text>
+                        </View>
+                        <View style={styles.pendingBottleRight}>
+                          <Text style={styles.pendingBottleQuantity}>×{bottle.quantity}</Text>
+                          <Text style={styles.pendingBottlePrice}>${bottle.price * bottle.quantity}</Text>
+                        </View>
+                      </View>
+                    ))}
+                    {returnItem.deposit > 0 && (
+                      <View style={styles.pendingBottleItem}>
+                        <View style={styles.pendingBottleLeft}>
+                          <Ionicons name="cash" size={16} color="#43e97b" />
+                          <Text style={styles.pendingBottleName}>Depósito adicional</Text>
+                        </View>
+                        <Text style={styles.pendingBottlePrice}>${returnItem.deposit}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Footer */}
+                  <View style={styles.pendingFooter}>
+                    <View style={styles.pendingFooterLeft}>
+                      <Text style={styles.pendingDate}>{formatDate(returnItem.created_at)}</Text>
+                      <Text style={styles.pendingTotalLabel}>Total: <Text style={styles.pendingTotal}>${returnItem.total_amount}</Text></Text>
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => handleMarkAsReturned(returnItem.id)}
+                      style={styles.completeButton}
+                      activeOpacity={0.8}
+                    >
+                      <LinearGradient
+                        colors={['#43e97b', '#38f9d7']}
+                        style={styles.completeButtonGradient}
+                      >
+                        <Ionicons name="checkmark-circle" size={18} color="#fff" />
+                        <Text style={styles.completeButtonText}>Completar</Text>
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  </View>
+                </LinearGradient>
+              </BlurView>
+            </Animated.View>
+          ))}
+        </>
+      )}
+    </ScrollView>
   );
 
   return (
@@ -592,6 +753,154 @@ const styles = StyleSheet.create({
   processText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  
+  // Pending Returns Styles
+  pendingCard: {
+    marginBottom: 16,
+  },
+  pendingBlur: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  pendingGradient: {
+    padding: 16,
+    gap: 12,
+  },
+  pendingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  pendingHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  customerIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  customerIcon: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pendingCustomerInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  pendingCustomerName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  pendingPhoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  pendingPhone: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  pendingBadge: {
+    backgroundColor: 'rgba(255,174,66,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,174,66,0.3)',
+  },
+  pendingBadgeText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#ffae42',
+  },
+  pendingBottlesContainer: {
+    gap: 8,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  pendingBottleItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  pendingBottleLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  pendingBottleName: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.9)',
+  },
+  pendingBottleRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pendingBottleQuantity: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  pendingBottlePrice: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#43e97b',
+  },
+  pendingFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+  },
+  pendingFooterLeft: {
+    flex: 1,
+    gap: 4,
+  },
+  pendingDate: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  pendingTotalLabel: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.7)',
+  },
+  pendingTotal: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#f093fb',
+  },
+  completeButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  completeButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  completeButtonText: {
+    color: '#fff',
+    fontSize: 13,
     fontWeight: 'bold',
   },
 });
