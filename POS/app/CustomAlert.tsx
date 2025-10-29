@@ -60,7 +60,7 @@ const alertThemes = {
   },
 };
 
-function CustomAlert({
+const CustomAlert = ({
   visible,
   title,
   message,
@@ -68,7 +68,7 @@ function CustomAlert({
   icon,
   type = 'info',
   onDismiss,
-}: CustomAlertProps) {
+}: CustomAlertProps) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -222,7 +222,7 @@ function CustomAlert({
                   ]}
                 >
                   <LinearGradient
-                    colors={[...theme.gradient, 'rgba(255,255,255,0.1)']}
+                    colors={[...theme.gradient, 'rgba(255,255,255,0.1)'] as [string, string, string]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={styles.iconGradient}
@@ -247,7 +247,7 @@ function CustomAlert({
 
                 {/* Línea decorativa */}
                 <LinearGradient
-                  colors={theme.gradient}
+                  colors={theme.gradient as [string, string]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.divider}
@@ -272,10 +272,10 @@ function CustomAlert({
                         <LinearGradient
                           colors={
                             isDestructive
-                              ? ['#ff5858', '#ff1b1b']
+                              ? ['#ff5858', '#ff1b1b'] as [string, string]
                               : isCancel
-                              ? ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']
-                              : theme.gradient
+                              ? ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)'] as [string, string]
+                              : theme.gradient as [string, string]
                           }
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 0 }}
