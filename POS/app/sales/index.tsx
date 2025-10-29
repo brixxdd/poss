@@ -22,7 +22,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useAlert, alertHelpers } from '../components/AlertProvider';
-import { QRScanner } from '../components/QRScanner';
+import QRScanner from '../components/QRScanner';
 import { NetworkStatus } from '../components/NetworkStatus';
 import { initOfflineStorage } from '../../lib/offlineStorage';
 
