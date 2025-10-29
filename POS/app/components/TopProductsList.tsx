@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BACKEND_URL } from '../constants/config';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { CustomAlert } from '../CustomAlert';
+import CustomAlert from '../CustomAlert';
 
 interface TopProduct {
   product_id: string;
