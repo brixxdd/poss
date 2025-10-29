@@ -31,7 +31,8 @@ export default function TopProductsList({ rangeDays = 30, limit = 5 }: TopProduc
     try {
       const token = await AsyncStorage.getItem('userToken');
       const response = await axios.get(`${BACKEND_URL}/api/analytics/top-products?range=${rangeDays}&limit=${limit}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`,
+        'ngrok-skip-browser-warning': 'true' },
       });
       setTopProducts(response.data);
     } catch (err: any) {

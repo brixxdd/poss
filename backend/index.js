@@ -544,7 +544,7 @@ app.get('/api/sales/:id', authenticateToken, async (req, res) => {
     }
 });
 
-const { runStockAlerts, getSalesPrediction, getTopProducts, evaluateSalesPredictions, getModelMetrics, getTotalSalesToday, getAvgDailySalesForRange } = require('./analytics');
+const { runStockAlerts, getSalesPrediction, getTopProducts, evaluateSalesPredictions, getModelMetrics, getAggregatedModelMetrics, getTotalSalesToday, getAvgDailySalesForRange } = require('./analytics');
 const { processWhatsAppAction, isWhatsAppNumberAuthorized } = require('./whatsappBot');
 const cron = require('node-cron');
 
@@ -675,7 +675,7 @@ app.get('/api/analytics/top-products', authenticateToken, async (req, res) => {
     }
 });
 
-// Ruta para obtener las métricas de evaluación de los modelos
+// Ruta para obtener las métricas de evaluación de los modelos (detalladas por producto)
 app.get('/api/analytics/metrics', authenticateToken, async (req, res) => {
     try {
         const metrics = await getModelMetrics(pool);
@@ -683,6 +683,17 @@ app.get('/api/analytics/metrics', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('Error fetching model metrics:', error);
         res.status(500).json({ message: 'Error fetching model metrics', error: error.message });
+    }
+});
+
+// Ruta para obtener las métricas AGREGADAS por modelo (vista resumida)
+app.get('/api/analytics/aggregated-metrics', authenticateToken, async (req, res) => {
+    try {
+        const metrics = await getAggregatedModelMetrics(pool);
+        res.json(metrics);
+    } catch (error) {
+        console.error('Error fetching aggregated model metrics:', error);
+        res.status(500).json({ message: 'Error fetching aggregated model metrics', error: error.message });
     }
 });
 

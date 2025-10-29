@@ -6,12 +6,12 @@ import { BACKEND_URL } from '../constants/config';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomAlert } from '../CustomAlert';
 
-interface Metric {
-  product_name: string;
+interface AggregatedMetric {
   model_version: string;
-  mae: number;
-  rmse: number;
-  evaluated_at: string;
+  avg_mae: number;
+  avg_rmse: number;
+  products_count: number;
+  last_evaluated: string;
 }
 
 // Helper para interpretar MAE y retornar calidad con semáforo
@@ -26,7 +26,7 @@ const getMetricQuality = (mae: number) => {
 };
 
 export default function MetricsDashboard() {
-  const [metrics, setMetrics] = useState<Metric[]>([]);
+  const [metrics, setMetrics] = useState<AggregatedMetric[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [alertVisible, setAlertVisible] = useState(false);
@@ -37,8 +37,9 @@ export default function MetricsDashboard() {
     setError(null);
     try {
       const token = await AsyncStorage.getItem('userToken');
-      const response = await axios.get(`${BACKEND_URL}/api/analytics/metrics`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const response = await axios.get(`${BACKEND_URL}/api/analytics/aggregated-metrics`, {
+        headers: { Authorization: `Bearer ${token}`,
+        'ngrok-skip-browser-warning': 'true' },
       });
       setMetrics(response.data);
     } catch (err: any) {
@@ -82,17 +83,12 @@ export default function MetricsDashboard() {
     );
   }
 
-  const renderMetricItem = ({ item }: { item: Metric }) => {
-    const quality = getMetricQuality(item.mae);
+  const renderMetricItem = ({ item }: { item: AggregatedMetric }) => {
+    const quality = getMetricQuality(item.avg_mae);
 
     return (
       <View style={styles.itemContainer}>
-        <View style={styles.itemHeader}>
-          <Ionicons name="analytics-outline" size={20} color="#fff" />
-          <Text style={styles.itemName}>{item.product_name}</Text>
-        </View>
-
-        {/* Semáforo de Calidad */}
+        {/* Indicador de Calidad Principal */}
         <View style={styles.qualityContainer}>
           <Text style={styles.qualityEmoji}>{quality.emoji}</Text>
           <View style={styles.qualityTextContainer}>
@@ -101,12 +97,29 @@ export default function MetricsDashboard() {
           </View>
         </View>
 
-        {/* Métricas Técnicas (compactas) */}
-        <View style={styles.technicalMetrics}>
-          <Text style={styles.modelVersion}>{item.model_version}</Text>
+        {/* Información del Modelo */}
+        <View style={styles.modelInfoContainer}>
+          <View style={styles.modelRow}>
+            <Ionicons name="code-working-outline" size={18} color="rgba(255,255,255,0.8)" />
+            <Text style={styles.modelName}>{item.model_version}</Text>
+          </View>
+
+          <View style={styles.modelRow}>
+            <Ionicons name="cube-outline" size={18} color="rgba(255,255,255,0.8)" />
+            <Text style={styles.modelDetail}>
+              {item.products_count} {item.products_count === 1 ? 'producto evaluado' : 'productos evaluados'}
+            </Text>
+          </View>
         </View>
 
-        <Text style={styles.itemDate}>Evaluado: {new Date(item.evaluated_at).toLocaleDateString()}</Text>
+        {/* Fecha de Evaluación */}
+        <Text style={styles.itemDate}>
+          Última evaluación: {new Date(item.last_evaluated).toLocaleDateString('es-MX', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          })}
+        </Text>
       </View>
     );
   };
@@ -117,7 +130,7 @@ export default function MetricsDashboard() {
       <FlatList
         data={metrics}
         renderItem={renderMetricItem}
-        keyExtractor={(item, index) => `${item.product_name}-${item.model_version}-${index}`}
+        keyExtractor={(item, index) => `${item.model_version}-${index}`}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
@@ -216,21 +229,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255,255,255,0.7)',
   },
-  technicalMetrics: {
+  modelInfoContainer: {
     backgroundColor: 'rgba(0,0,0,0.2)',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+    gap: 8,
   },
-  technicalText: {
+  modelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modelName: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '600',
+    flex: 1,
+  },
+  modelDetail: {
     fontSize: 13,
     color: 'rgba(255,255,255,0.8)',
-    marginBottom: 4,
-  },
-  modelVersion: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.6)',
-    fontStyle: 'italic',
+    flex: 1,
   },
   itemDate: {
     fontSize: 11,
