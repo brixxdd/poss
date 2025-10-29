@@ -21,11 +21,11 @@ import { BACKEND_URL } from '../../constants/config';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { QRGenerator } from '../../components/QRGenerator';
+import QRGenerator from '../../components/QRGenerator';
 import { pickImage, uploadToCloudinary, requestImagePermissions } from '../../utils/cloudinary';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'react-native';
-import { CustomAlert } from '../../CustomAlert';
+import CustomAlert from '../../CustomAlert';
 
 const { width, height } = Dimensions.get('window');
 

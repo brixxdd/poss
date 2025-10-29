@@ -21,7 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useAlert, alertHelpers } from '../../components/AlertProvider';
-import { QRGenerator } from '../../components/QRGenerator';
+import QRGenerator from '../../components/QRGenerator';
 
 const { width } = Dimensions.get('window');
 
