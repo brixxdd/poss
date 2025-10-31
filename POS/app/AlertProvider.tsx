@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { CustomAlert } from './CustomAlert';
+import CustomAlert from './CustomAlert';
 import { Ionicons } from '@expo/vector-icons';
 
 interface CustomAlertButton {
@@ -23,7 +23,7 @@ interface AlertContextType {
 
 const AlertContext = createContext<AlertContextType | undefined>(undefined);
 
-export const AlertProvider = ({ children }: { children: ReactNode }) => {
+const AlertProvider = ({ children }: { children: ReactNode }) => {
   const [alertConfig, setAlertConfig] = useState<AlertOptions & { visible: boolean }> ({
     visible: false,
     title: '',
@@ -167,3 +167,5 @@ export const alertHelpers = {
     });
   },
 };
+
+export default AlertProvider;

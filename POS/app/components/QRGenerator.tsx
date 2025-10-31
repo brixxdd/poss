@@ -35,7 +35,7 @@ interface QRGeneratorProps {
   onClose: () => void;
 }
 
-export function QRGenerator({ visible, product, onClose }: QRGeneratorProps) {
+export default function QRGenerator({ visible, product, onClose }: QRGeneratorProps) {
   const [qrSize, setQrSize] = useState(200);
   const [isCapturing, setIsCapturing] = useState(false);
   const qrRef = useRef<any>(null);

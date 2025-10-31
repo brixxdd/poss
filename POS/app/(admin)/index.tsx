@@ -43,13 +43,6 @@ const menuItems = [
     shadowColor: '#f093fb',
   },
   {
-    title: 'Usuarios',
-    icon: 'person-circle-outline',
-    route: '/users',
-    gradient: ['#43e97b', '#38f9d7'] as [string, string],
-    shadowColor: '#43e97b',
-  },
-  {
     title: 'Alertas',
     icon: 'notifications-outline',
     route: '/alerts',

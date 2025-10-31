@@ -1,0 +1,47 @@
+# Backend files (no necesarios para la app móvil)
+../backend/
+../backend/**/*
+
+# Archivos del proyecto
+../*.pdf
+../*.txt
+../roadmap.txt
+../proyecto Final MOVILEs.pdf
+../README.md
+../Alertexamples.tsx
+
+# Node modules del proyecto raíz (si existen)
+../node_modules/
+
+# Android build outputs (se regeneran)
+android/app/build/
+android/build/
+android/.cxx/
+android/.gradle/
+
+# Archivos temporales
+.expo/
+.expo-shared/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Documentación generada
+GUIA_COMPILACION_APK.md
+INICIO_RAPIDO.md
+setup-android.ps1
+setup-android-clean.ps1
+gitignore-android.txt
+CHECK_CLOUDINARY.md
+CLOUDINARY_SETUP.md
+OFFLINE_TEST_GUIDE.md
+

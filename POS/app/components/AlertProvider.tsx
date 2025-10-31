@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { CustomAlert } from '../CustomAlert';
+import CustomAlert from '../CustomAlert';
 import { Ionicons } from '@expo/vector-icons';
 
 interface CustomAlertButton {

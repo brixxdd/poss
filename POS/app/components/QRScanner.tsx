@@ -13,7 +13,7 @@ import { CameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { CustomAlert } from '../CustomAlert';
+import CustomAlert from '../CustomAlert';
 
 const { width, height } = Dimensions.get('window');
 
@@ -32,7 +32,7 @@ interface QRScannerProps {
   onProductScanned: (product: Product) => void;
 }
 
-export function QRScanner({ visible, onClose, onProductScanned }: QRScannerProps) {
+export default function QRScanner({ visible, onClose, onProductScanned }: QRScannerProps) {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [facing, setFacing] = useState<CameraType>('back');
